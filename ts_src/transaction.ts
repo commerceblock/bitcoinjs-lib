@@ -53,8 +53,8 @@ export interface BlankOutput {
 export interface Output {
   script: Buffer;
   value: number;
-  asset: number;
-  assetlabel: string;
+  asset: number | undefined;
+  assetlabel: string | undefined;
 }
 
 type OpenOutput = Output | BlankOutput;
@@ -235,7 +235,7 @@ export class Transaction {
     );
   }
 
-  addOutput(scriptPubKey: Buffer, value: number, _asset : number, _assetlabel : string): number {
+  addOutput(scriptPubKey: Buffer, value: number, _asset?: number, _assetlabel?: string): number {
     typeforce(types.tuple(types.Buffer, types.Satoshi, types.Hash256bit, types.String), arguments);
     return (
       this.outs.push({

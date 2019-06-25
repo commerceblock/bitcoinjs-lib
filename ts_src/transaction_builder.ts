@@ -214,7 +214,7 @@ export class TransactionBuilder {
     });
   }
 
-  addOutput(scriptPubKey: string | Buffer, value: number, asset : number, assetlabel: string): number {
+  addOutput(scriptPubKey: string | Buffer, value: number, asset?: number, assetlabel?: string): number {
     if (!this.__canModifyOutputs()) {
       throw new Error('No, this would invalidate signatures');
     }
