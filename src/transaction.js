@@ -163,15 +163,28 @@ class Transaction {
       }) - 1
     );
   }
-  addOutput(scriptPubKey, value) {
-    typeforce(types.tuple(types.Buffer, types.Satoshi), arguments);
-    // Add the output and return the output's index
-    return (
-      this.outs.push({
-        script: scriptPubKey,
-        value,
-      }) - 1
-    );
+  addOutput(scriptPubKey, value, asset = null, assetlabel = null) {
+    if (asset === null && assetlabel === null){
+      typeforce(types.tuple(types.Buffer, types.Satoshi), arguments);
+      // Add the output and return the output's index
+      return (
+        this.outs.push({
+          script: scriptPubKey,
+          value,
+        }) - 1
+      );
+    }
+    else{
+      typeforce(types.tuple(types.Buffer, types.Satoshi, types.Hash256bit, types.String), arguments);
+      return (
+        this.outs.push({
+          script: scriptPubKey,
+          value,
+          asset: asset,
+          assetlabel: assetlabel,
+        }) - 1
+      );
+    }
   }
   hasWitnesses() {
     return this.ins.some(x => {
