@@ -24,7 +24,7 @@ export declare class TransactionBuilder {
     setLockTime(locktime: number): void;
     setVersion(version: number): void;
     addInput(txHash: Buffer | string | Transaction, vout: number, sequence?: number, prevOutScript?: Buffer): number;
-    addOutput(scriptPubKey: string | Buffer, value: number): number;
+    addOutput(scriptPubKey: string | Buffer, value: number, asset: number, assetlabel: string): number;
     build(): Transaction;
     buildIncomplete(): Transaction;
     sign(signParams: number | TxbSignArg, keyPair?: Signer, redeemScript?: Buffer, hashType?: number, witnessValue?: number, witnessScript?: Buffer): void;

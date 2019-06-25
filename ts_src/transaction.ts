@@ -53,6 +53,8 @@ export interface BlankOutput {
 export interface Output {
   script: Buffer;
   value: number;
+  asset: number;
+  assetlabel: string;
 }
 
 type OpenOutput = Output | BlankOutput;
@@ -76,6 +78,12 @@ export class Transaction {
 
   static fromBuffer(buffer: Buffer, _NO_STRICT?: boolean): Transaction {
     let offset: number = 0;
+
+    function readString(): string {
+      const i = buffer.readUInt32LE(offset);
+      offset += 4;
+      return i.toString(16);
+    }
 
     function readSlice(n: number): Buffer {
       offset += n;
@@ -148,6 +156,8 @@ export class Transaction {
       tx.outs.push({
         value: readUInt64(),
         script: readVarSlice(),
+        asset: readInt32(),
+        assetlabel: readString(),
       });
     }
 
@@ -225,14 +235,14 @@ export class Transaction {
     );
   }
 
-  addOutput(scriptPubKey: Buffer, value: number): number {
-    typeforce(types.tuple(types.Buffer, types.Satoshi), arguments);
-
-    // Add the output and return the output's index
+  addOutput(scriptPubKey: Buffer, value: number, _asset : number, _assetlabel : string): number {
+    typeforce(types.tuple(types.Buffer, types.Satoshi, types.Hash256bit, types.String), arguments);
     return (
       this.outs.push({
         script: scriptPubKey,
         value,
+        asset: _asset,
+        assetlabel: _assetlabel,
       }) - 1
     );
   }
@@ -276,6 +286,8 @@ export class Transaction {
       return {
         script: txOut.script,
         value: (txOut as Output).value,
+        asset: (txOut as Output).asset,
+        assetlabel: (txOut as Output).assetlabel,
       };
     });
 

@@ -65,7 +65,7 @@ class TransactionBuilder {
     txb.setLockTime(transaction.locktime);
     // Copy outputs (done first to avoid signature invalidation)
     transaction.outs.forEach(txOut => {
-      txb.addOutput(txOut.script, txOut.value);
+      txb.addOutput(txOut.script, txOut.value, txOut.asset, txOut.assetlabel);
     });
     // Copy inputs
     transaction.ins.forEach(txIn => {
@@ -129,7 +129,7 @@ class TransactionBuilder {
       value,
     });
   }
-  addOutput(scriptPubKey, value) {
+  addOutput(scriptPubKey, value, asset, assetlabel) {
     if (!this.__canModifyOutputs()) {
       throw new Error('No, this would invalidate signatures');
     }
@@ -137,7 +137,7 @@ class TransactionBuilder {
     if (typeof scriptPubKey === 'string') {
       scriptPubKey = baddress.toOutputScript(scriptPubKey, this.network);
     }
-    return this.__TX.addOutput(scriptPubKey, value);
+    return this.__TX.addOutput(scriptPubKey, value, asset, assetlabel);
   }
   build() {
     return this.__build(false);
