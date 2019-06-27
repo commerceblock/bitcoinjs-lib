@@ -53,8 +53,7 @@ export interface BlankOutput {
 export interface Output {
   script: Buffer;
   value: number;
-  asset: number | undefined;
-  assetlabel: string | undefined;
+  asset: Buffer;
 }
 
 type OpenOutput = Output | BlankOutput;
@@ -78,12 +77,6 @@ export class Transaction {
 
   static fromBuffer(buffer: Buffer, _NO_STRICT?: boolean): Transaction {
     let offset: number = 0;
-
-    function readString(): string {
-      const i = buffer.readUInt32LE(offset);
-      offset += 4;
-      return i.toString(16);
-    }
 
     function readSlice(n: number): Buffer {
       offset += n;
@@ -118,27 +111,10 @@ export class Transaction {
       return readSlice(readVarInt());
     }
 
-    function readVector(): Buffer[] {
-      const count = readVarInt();
-      const vector: Buffer[] = [];
-      for (let i = 0; i < count; i++) vector.push(readVarSlice());
-      return vector;
-    }
-
     const tx = new Transaction();
     tx.version = readInt32();
 
-    const marker = buffer.readUInt8(offset);
-    const flag = buffer.readUInt8(offset + 1);
-
-    let hasWitnesses = false;
-    if (
-      marker === Transaction.ADVANCED_TRANSACTION_MARKER &&
-      flag === Transaction.ADVANCED_TRANSACTION_FLAG
-    ) {
-      offset += 2;
-      hasWitnesses = true;
-    }
+    offset += 2;
 
     const vinLen = readVarInt();
     for (let i = 0; i < vinLen; ++i) {
@@ -156,19 +132,8 @@ export class Transaction {
       tx.outs.push({
         value: readUInt64(),
         script: readVarSlice(),
-        asset: readInt32(),
-        assetlabel: readString(),
+        asset: readSlice(32),
       });
-    }
-
-    if (hasWitnesses) {
-      for (let i = 0; i < vinLen; ++i) {
-        tx.ins[i].witness = readVector();
-      }
-
-      // was this pointless?
-      if (!tx.hasWitnesses())
-        throw new Error('Transaction has superfluous witness data');
     }
 
     tx.locktime = readUInt32();
@@ -235,14 +200,13 @@ export class Transaction {
     );
   }
 
-  addOutput(scriptPubKey: Buffer, value: number, _asset?: number, _assetlabel?: string): number {
-    typeforce(types.tuple(types.Buffer, types.Satoshi, types.Hash256bit, types.String), arguments);
+  addOutput(scriptPubKey: Buffer, value: number, _asset: Buffer): number {
+    typeforce(types.tuple(types.Buffer, types.Satoshi, types.Hash256bit), arguments);
     return (
       this.outs.push({
         script: scriptPubKey,
         value,
         asset: _asset,
-        assetlabel: _assetlabel,
       }) - 1
     );
   }
@@ -287,7 +251,6 @@ export class Transaction {
         script: txOut.script,
         value: (txOut as Output).value,
         asset: (txOut as Output).asset,
-        assetlabel: (txOut as Output).assetlabel,
       };
     });
 
@@ -586,19 +549,11 @@ export class Transaction {
       writeSlice(slice);
     }
 
-    function writeVector(vector: Buffer[]): void {
-      writeVarInt(vector.length);
-      vector.forEach(writeVarSlice);
-    }
-
     writeInt32(this.version);
 
-    const hasWitnesses = _ALLOW_WITNESS && this.hasWitnesses();
-
-    if (hasWitnesses) {
-      writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
-      writeUInt8(Transaction.ADVANCED_TRANSACTION_FLAG);
-    }
+    //No segwit support at the moment, flag is 00
+    writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
+    writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
 
     writeVarInt(this.ins.length);
 
@@ -619,12 +574,6 @@ export class Transaction {
 
       writeVarSlice(txOut.script);
     });
-
-    if (hasWitnesses) {
-      this.ins.forEach(input => {
-        writeVector(input.witness);
-      });
-    }
 
     writeUInt32(this.locktime);
 

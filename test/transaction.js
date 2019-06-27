@@ -40,7 +40,7 @@ describe('Transaction', () => {
         script = bscript.fromASM(txOut.script)
       }
 
-      tx.addOutput(script, txOut.value)
+      tx.addOutput(script, txOut.value, txOut.asset)
     })
 
     return tx
@@ -182,8 +182,8 @@ describe('Transaction', () => {
   describe('addOutput', () => {
     it('returns an index', () => {
       const tx = new Transaction()
-      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0), 0)
-      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0), 1)
+      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0, Buffer.alloc(0)), 0)
+      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0, Buffer.alloc(0)), 1)
     })
   })
 
@@ -238,7 +238,7 @@ describe('Transaction', () => {
 
       const tx = new Transaction()
       tx.addInput(Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'), 0)
-      tx.addOutput(randScript, 5000000000)
+      tx.addOutput(randScript, 5000000000, 'e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d')
 
       const original = tx.__toBuffer
       tx.__toBuffer = (a, b, c) => {
