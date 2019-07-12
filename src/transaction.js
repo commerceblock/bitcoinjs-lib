@@ -35,6 +35,7 @@ const VALUE_UINT64_MAX = Buffer.from('ffffffffffffffff', 'hex');
 const BLANK_OUTPUT = {
   script: EMPTY_SCRIPT,
   valueBuffer: VALUE_UINT64_MAX,
+  asset: ZERO,
 };
 function isOutput(out) {
   return out.value !== undefined;
@@ -141,7 +142,7 @@ class Transaction {
       }) - 1
     );
   }
-  addOutput(scriptPubKey, value, _asset) {
+  addOutput(scriptPubKey, value, asset) {
     typeforce(
       types.tuple(types.Buffer, types.Satoshi, types.Hash256bit),
       arguments,
@@ -150,7 +151,7 @@ class Transaction {
       this.outs.push({
         script: scriptPubKey,
         value,
-        asset: _asset,
+        asset,
       }) - 1
     );
   }
@@ -316,6 +317,7 @@ class Transaction {
       this.outs.forEach(out => {
         writeUInt64(out.value);
         writeVarSlice(out.script);
+        writeSlice(out.asset);
       });
       hashOutputs = bcrypto.hash256(tbuffer);
     } else if (
@@ -327,6 +329,7 @@ class Transaction {
       toffset = 0;
       writeUInt64(output.value);
       writeVarSlice(output.script);
+      writeSlice(output.asset);
       hashOutputs = bcrypto.hash256(tbuffer);
     }
     tbuffer = Buffer.allocUnsafe(156 + varSliceSize(prevOutScript));
@@ -371,14 +374,14 @@ class Transaction {
   __byteLength(_ALLOW_WITNESS) {
     const hasWitnesses = _ALLOW_WITNESS && this.hasWitnesses();
     return (
-      (hasWitnesses ? 10 : 8) +
+      (hasWitnesses ? 10 : 10) +
       varuint.encodingLength(this.ins.length) +
       varuint.encodingLength(this.outs.length) +
       this.ins.reduce((sum, input) => {
         return sum + 40 + varSliceSize(input.script);
       }, 0) +
       this.outs.reduce((sum, output) => {
-        return sum + 8 + varSliceSize(output.script);
+        return sum + 40 + varSliceSize(output.script);
       }, 0) +
       (hasWitnesses
         ? this.ins.reduce((sum, input) => {
@@ -414,7 +417,7 @@ class Transaction {
       writeSlice(slice);
     }
     writeInt32(this.version);
-    //No segwit support at the moment, flag is 00
+    // No segwit support at the moment, flag is 00
     writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
     writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
     writeVarInt(this.ins.length);
@@ -432,6 +435,7 @@ class Transaction {
         writeSlice(txOut.valueBuffer);
       }
       writeVarSlice(txOut.script);
+      writeSlice(txOut.asset);
     });
     writeUInt32(this.locktime);
     // avoid slicing unless necessary

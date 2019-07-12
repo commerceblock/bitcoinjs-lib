@@ -138,9 +138,8 @@ class TransactionBuilder {
       scriptPubKey = baddress.toOutputScript(scriptPubKey, this.network);
     }
     // is it a hex string?
-    if (txIsString(asset)) {
-      // transaction hashs's are displayed in reverse order, un-reverse it
-      asset = bufferutils_1.reverseBuffer(Buffer.from(asset, 'hex'));
+    if (typeof asset === 'string') {
+      asset = Buffer.from(asset, 'hex');
     }
     return this.__TX.addOutput(scriptPubKey, value, asset);
   }

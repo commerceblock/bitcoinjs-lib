@@ -110,7 +110,7 @@ export class TransactionBuilder {
 
     // Copy outputs (done first to avoid signature invalidation)
     transaction.outs.forEach(txOut => {
-      txb.addOutput(txOut.script, (txOut as Output).value, (txOut as Output).asset);
+      txb.addOutput(txOut.script, (txOut as Output).value, txOut.asset);
     });
 
     // Copy inputs
@@ -214,7 +214,11 @@ export class TransactionBuilder {
     });
   }
 
-  addOutput(scriptPubKey: string | Buffer, value: number, asset: string | Buffer): number {
+  addOutput(
+    scriptPubKey: string | Buffer,
+    value: number,
+    asset: string | Buffer,
+  ): number {
     if (!this.__canModifyOutputs()) {
       throw new Error('No, this would invalidate signatures');
     }
@@ -225,9 +229,8 @@ export class TransactionBuilder {
     }
 
     // is it a hex string?
-    if (txIsString(asset)) {
-      // transaction hashs's are displayed in reverse order, un-reverse it
-      asset = reverseBuffer(Buffer.from(asset, 'hex'));
+    if (typeof asset === 'string') {
+      asset = Buffer.from(asset, 'hex');
     }
 
     return this.__TX.addOutput(scriptPubKey, value, asset);
