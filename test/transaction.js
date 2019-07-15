@@ -40,7 +40,7 @@ describe('Transaction', () => {
         script = bscript.fromASM(txOut.script)
       }
 
-      tx.addOutput(script, txOut.value)
+      tx.addOutput(script, txOut.value, Buffer.from(txOut.asset, 'hex'))
     })
 
     return tx
@@ -68,7 +68,6 @@ describe('Transaction', () => {
 
     fixtures.valid.forEach(importExport)
     fixtures.hashForSignature.forEach(importExport)
-    fixtures.hashForWitnessV0.forEach(importExport)
 
     fixtures.invalid.fromBuffer.forEach(f => {
       it('throws on ' + f.exception, () => {
@@ -182,8 +181,8 @@ describe('Transaction', () => {
   describe('addOutput', () => {
     it('returns an index', () => {
       const tx = new Transaction()
-      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0), 0)
-      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0), 1)
+      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0, Buffer.alloc('e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d')), 0)
+      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0, Buffer.alloc('e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d')), 1)
     })
   })
 
@@ -238,7 +237,7 @@ describe('Transaction', () => {
 
       const tx = new Transaction()
       tx.addInput(Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'), 0)
-      tx.addOutput(randScript, 5000000000)
+      tx.addOutput(randScript, 5000000000, Buffer.from('e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex'))
 
       const original = tx.__toBuffer
       tx.__toBuffer = (a, b, c) => {
@@ -263,17 +262,6 @@ describe('Transaction', () => {
         const script = bscript.fromASM(f.script)
 
         assert.strictEqual(tx.hashForSignature(f.inIndex, script, f.type).toString('hex'), f.hash)
-      })
-    })
-  })
-
-  describe('hashForWitnessV0', () => {
-    fixtures.hashForWitnessV0.forEach(f => {
-      it('should return ' + f.hash + ' for ' + (f.description ? ('case "' + f.description + '"') : ''), () => {
-        const tx = Transaction.fromHex(f.txHex)
-        const script = bscript.fromASM(f.script)
-
-        assert.strictEqual(tx.hashForWitnessV0(f.inIndex, script, f.value, f.type).toString('hex'), f.hash)
       })
     })
   })

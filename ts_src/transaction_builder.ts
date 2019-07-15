@@ -71,7 +71,7 @@ export class TransactionBuilder {
 
     // Copy outputs (done first to avoid signature invalidation)
     transaction.outs.forEach(txOut => {
-      txb.addOutput(txOut.script, (txOut as Output).value);
+      txb.addOutput(txOut.script, (txOut as Output).value, (txOut as Output).asset);
     });
 
     // Copy inputs
@@ -175,7 +175,7 @@ export class TransactionBuilder {
     });
   }
 
-  addOutput(scriptPubKey: string | Buffer, value: number): number {
+  addOutput(scriptPubKey: string | Buffer, value: number, asset: string | Buffer): number {
     if (!this.__canModifyOutputs()) {
       throw new Error('No, this would invalidate signatures');
     }
@@ -185,7 +185,11 @@ export class TransactionBuilder {
       scriptPubKey = baddress.toOutputScript(scriptPubKey, this.network);
     }
 
-    return this.__TX.addOutput(scriptPubKey, value);
+    if (typeof asset === 'string') {
+      asset = Buffer.from(asset, 'hex');
+    }
+
+    return this.__TX.addOutput(scriptPubKey, value, asset);
   }
 
   build(): Transaction {
