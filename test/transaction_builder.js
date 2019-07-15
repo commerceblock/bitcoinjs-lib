@@ -472,7 +472,7 @@ describe('TransactionBuilder', () => {
 
       txb.buildIncomplete()
     })
-
+  })
   describe('multisig', () => {
     fixtures.valid.multisig.forEach(f => {
       it(f.description, () => {

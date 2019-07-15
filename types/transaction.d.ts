@@ -2,10 +2,12 @@
 export interface BlankOutput {
     script: Buffer;
     valueBuffer: Buffer;
+    asset: Buffer;
 }
 export interface Output {
     script: Buffer;
     value: number;
+    asset: Buffer;
 }
 declare type OpenOutput = Output | BlankOutput;
 export interface Input {
@@ -32,7 +34,7 @@ export declare class Transaction {
     outs: OpenOutput[];
     isCoinbase(): boolean;
     addInput(hash: Buffer, index: number, sequence?: number, scriptSig?: Buffer): number;
-    addOutput(scriptPubKey: Buffer, value: number): number;
+    addOutput(scriptPubKey: Buffer, value: number, asset: Buffer): number;
     hasWitnesses(): boolean;
     weight(): number;
     virtualSize(): number;

@@ -203,7 +203,10 @@ export class Transaction {
   }
 
   addOutput(scriptPubKey: Buffer, value: number, asset: Buffer): number {
-    typeforce(types.tuple(types.Buffer, types.Satoshi, types.Buffer), arguments);
+    typeforce(
+      types.tuple(types.Buffer, types.Satoshi, types.Buffer),
+      arguments,
+    );
 
     // Add the output and return the output's index
     return (
@@ -440,7 +443,7 @@ export class Transaction {
       toffset = 0;
       writeUInt64((output as Output).value);
       writeVarSlice(output.script);
-      writeSlice(out.asset)
+      writeSlice(output.asset);
 
       hashOutputs = bcrypto.hash256(tbuffer);
     }
@@ -557,7 +560,7 @@ export class Transaction {
 
     writeInt32(this.version);
 
-    //No segwit support at the moment, flags are 00
+    // No segwit support at the moment, flags are 00
     writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
     writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
 

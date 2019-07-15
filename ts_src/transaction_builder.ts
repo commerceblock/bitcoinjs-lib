@@ -71,7 +71,11 @@ export class TransactionBuilder {
 
     // Copy outputs (done first to avoid signature invalidation)
     transaction.outs.forEach(txOut => {
-      txb.addOutput(txOut.script, (txOut as Output).value, (txOut as Output).asset);
+      txb.addOutput(
+        txOut.script,
+        (txOut as Output).value,
+        (txOut as Output).asset,
+      );
     });
 
     // Copy inputs
@@ -175,7 +179,11 @@ export class TransactionBuilder {
     });
   }
 
-  addOutput(scriptPubKey: string | Buffer, value: number, asset: string | Buffer): number {
+  addOutput(
+    scriptPubKey: string | Buffer,
+    value: number,
+    asset: string | Buffer,
+  ): number {
     if (!this.__canModifyOutputs()) {
       throw new Error('No, this would invalidate signatures');
     }
