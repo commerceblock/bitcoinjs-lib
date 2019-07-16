@@ -45,7 +45,6 @@ class TransactionBuilder {
       txb.__addInputUnsafe(txIn.hash, txIn.index, {
         sequence: txIn.sequence,
         script: txIn.script,
-        witness: txIn.witness,
       });
     });
     // fix some things not possible through the public API
@@ -94,7 +93,7 @@ class TransactionBuilder {
       const txOut = txHash.outs[vout];
       prevOutScript = txOut.script;
       value = txOut.value;
-      txHash = txHash.getHash(false);
+      txHash = txHash.getHash();
     }
     return this.__addInputUnsafe(txHash, vout, {
       sequence,
@@ -121,7 +120,7 @@ class TransactionBuilder {
   buildIncomplete() {
     return this.__build(true);
   }
-  sign(vin, keyPair, redeemScript, hashType, witnessValue, witnessScript) {
+  sign(vin, keyPair, redeemScript, hashType) {
     // TODO: remove keyPair.network matching in 4.0.0
     if (keyPair.network && keyPair.network !== this.network)
       throw new TypeError('Inconsistent network');
@@ -140,19 +139,8 @@ class TransactionBuilder {
     }
     const ourPubKey = keyPair.publicKey || keyPair.getPublicKey();
     if (!canSign(input)) {
-      if (witnessValue !== undefined) {
-        if (input.value !== undefined && input.value !== witnessValue)
-          throw new Error('Input did not match witnessValue');
-        typeforce(types.Satoshi, witnessValue);
-        input.value = witnessValue;
-      }
       if (!canSign(input)) {
-        const prepared = prepareInput(
-          input,
-          ourPubKey,
-          redeemScript,
-          witnessScript,
-        );
+        const prepared = prepareInput(input, ourPubKey, redeemScript);
         // updates inline
         Object.assign(input, prepared);
       }
@@ -160,30 +148,11 @@ class TransactionBuilder {
     }
     // ready to sign
     let signatureHash;
-    if (input.hasWitness) {
-      signatureHash = this.__TX.hashForWitnessV0(
-        vin,
-        input.signScript,
-        input.value,
-        hashType,
-      );
-    } else {
-      signatureHash = this.__TX.hashForSignature(
-        vin,
-        input.signScript,
-        hashType,
-      );
-    }
+    signatureHash = this.__TX.hashForSignature(vin, input.signScript, hashType);
     // enforce in order signing of public keys
     const signed = input.pubkeys.some((pubKey, i) => {
       if (!ourPubKey.equals(pubKey)) return false;
       if (input.signatures[i]) throw new Error('Signature already exists');
-      // TODO: add tests
-      if (ourPubKey.length !== 33 && input.hasWitness) {
-        throw new Error(
-          'BIP143 rejects uncompressed public keys in P2WPKH or P2WSH',
-        );
-      }
       const signature = keyPair.sign(signatureHash, this.__USE_LOW_R);
       input.signatures[i] = bscript.signature.encode(signature, hashType);
       return true;
@@ -200,7 +169,7 @@ class TransactionBuilder {
     let input = {};
     // derive what we can from the scriptSig
     if (options.script !== undefined) {
-      input = expandInput(options.script, options.witness || []);
+      input = expandInput(options.script);
     }
     // if an input value was given, retain it
     if (options.value !== undefined) {
@@ -248,7 +217,6 @@ class TransactionBuilder {
         return;
       }
       tx.setInputScript(i, result.input);
-      tx.setWitness(i, result.witness);
     });
     if (!allowIncomplete) {
       // do not rely on this, its merely a last resort
@@ -323,27 +291,14 @@ class TransactionBuilder {
   }
 }
 exports.TransactionBuilder = TransactionBuilder;
-function expandInput(scriptSig, witnessStack, type, scriptPubKey) {
-  if (scriptSig.length === 0 && witnessStack.length === 0) return {};
+function expandInput(scriptSig, type, scriptPubKey) {
+  if (scriptSig.length === 0) return {};
   if (!type) {
     let ssType = classify.input(scriptSig, true);
-    let wsType = classify.witness(witnessStack, true);
     if (ssType === SCRIPT_TYPES.NONSTANDARD) ssType = undefined;
-    if (wsType === SCRIPT_TYPES.NONSTANDARD) wsType = undefined;
-    type = ssType || wsType;
+    type = ssType;
   }
   switch (type) {
-    case SCRIPT_TYPES.P2WPKH: {
-      const { output, pubkey, signature } = payments.p2wpkh({
-        witness: witnessStack,
-      });
-      return {
-        prevOutScript: output,
-        prevOutType: SCRIPT_TYPES.P2WPKH,
-        pubkeys: [pubkey],
-        signatures: [signature],
-      };
-    }
     case SCRIPT_TYPES.P2PKH: {
       const { output, pubkey, signature } = payments.p2pkh({
         input: scriptSig,
@@ -382,50 +337,15 @@ function expandInput(scriptSig, witnessStack, type, scriptPubKey) {
   if (type === SCRIPT_TYPES.P2SH) {
     const { output, redeem } = payments.p2sh({
       input: scriptSig,
-      witness: witnessStack,
     });
     const outputType = classify.output(redeem.output);
-    const expanded = expandInput(
-      redeem.input,
-      redeem.witness,
-      outputType,
-      redeem.output,
-    );
+    const expanded = expandInput(redeem.input, outputType, redeem.output);
     if (!expanded.prevOutType) return {};
     return {
       prevOutScript: output,
       prevOutType: SCRIPT_TYPES.P2SH,
       redeemScript: redeem.output,
       redeemScriptType: expanded.prevOutType,
-      witnessScript: expanded.witnessScript,
-      witnessScriptType: expanded.witnessScriptType,
-      pubkeys: expanded.pubkeys,
-      signatures: expanded.signatures,
-    };
-  }
-  if (type === SCRIPT_TYPES.P2WSH) {
-    const { output, redeem } = payments.p2wsh({
-      input: scriptSig,
-      witness: witnessStack,
-    });
-    const outputType = classify.output(redeem.output);
-    let expanded;
-    if (outputType === SCRIPT_TYPES.P2WPKH) {
-      expanded = expandInput(redeem.input, redeem.witness, outputType);
-    } else {
-      expanded = expandInput(
-        bscript.compile(redeem.witness),
-        [],
-        outputType,
-        redeem.output,
-      );
-    }
-    if (!expanded.prevOutType) return {};
-    return {
-      prevOutScript: output,
-      prevOutType: SCRIPT_TYPES.P2WSH,
-      witnessScript: redeem.output,
-      witnessScriptType: expanded.prevOutType,
       pubkeys: expanded.pubkeys,
       signatures: expanded.signatures,
     };
@@ -481,18 +401,6 @@ function expandOutput(script, ourPubKey) {
         signatures: [undefined],
       };
     }
-    case SCRIPT_TYPES.P2WPKH: {
-      if (!ourPubKey) return { type };
-      // does our hash160(pubKey) match the output scripts?
-      const wpkh1 = payments.p2wpkh({ output: script }).hash;
-      const wpkh2 = bcrypto.hash160(ourPubKey);
-      if (!wpkh1.equals(wpkh2)) return { type };
-      return {
-        type,
-        pubkeys: [ourPubKey],
-        signatures: [undefined],
-      };
-    }
     case SCRIPT_TYPES.P2PK: {
       const p2pk = payments.p2pk({ output: script });
       return {
@@ -513,48 +421,7 @@ function expandOutput(script, ourPubKey) {
   }
   return { type };
 }
-function prepareInput(input, ourPubKey, redeemScript, witnessScript) {
-  if (redeemScript && witnessScript) {
-    const p2wsh = payments.p2wsh({
-      redeem: { output: witnessScript },
-    });
-    const p2wshAlt = payments.p2wsh({ output: redeemScript });
-    const p2sh = payments.p2sh({ redeem: { output: redeemScript } });
-    const p2shAlt = payments.p2sh({ redeem: p2wsh });
-    // enforces P2SH(P2WSH(...))
-    if (!p2wsh.hash.equals(p2wshAlt.hash))
-      throw new Error('Witness script inconsistent with prevOutScript');
-    if (!p2sh.hash.equals(p2shAlt.hash))
-      throw new Error('Redeem script inconsistent with prevOutScript');
-    const expanded = expandOutput(p2wsh.redeem.output, ourPubKey);
-    if (!expanded.pubkeys)
-      throw new Error(
-        expanded.type +
-          ' not supported as witnessScript (' +
-          bscript.toASM(witnessScript) +
-          ')',
-      );
-    if (input.signatures && input.signatures.some(x => x !== undefined)) {
-      expanded.signatures = input.signatures;
-    }
-    const signScript = witnessScript;
-    if (expanded.type === SCRIPT_TYPES.P2WPKH)
-      throw new Error('P2SH(P2WSH(P2WPKH)) is a consensus failure');
-    return {
-      redeemScript,
-      redeemScriptType: SCRIPT_TYPES.P2WSH,
-      witnessScript,
-      witnessScriptType: expanded.type,
-      prevOutType: SCRIPT_TYPES.P2SH,
-      prevOutScript: p2sh.output,
-      hasWitness: true,
-      signScript,
-      signType: expanded.type,
-      pubkeys: expanded.pubkeys,
-      signatures: expanded.signatures,
-      maxSignatures: expanded.maxSignatures,
-    };
-  }
+function prepareInput(input, ourPubKey, redeemScript) {
   if (redeemScript) {
     const p2sh = payments.p2sh({ redeem: { output: redeemScript } });
     if (input.prevOutScript) {
@@ -578,50 +445,12 @@ function prepareInput(input, ourPubKey, redeemScript, witnessScript) {
     if (input.signatures && input.signatures.some(x => x !== undefined)) {
       expanded.signatures = input.signatures;
     }
-    let signScript = redeemScript;
-    if (expanded.type === SCRIPT_TYPES.P2WPKH) {
-      signScript = payments.p2pkh({ pubkey: expanded.pubkeys[0] }).output;
-    }
+    const signScript = redeemScript;
     return {
       redeemScript,
       redeemScriptType: expanded.type,
       prevOutType: SCRIPT_TYPES.P2SH,
       prevOutScript: p2sh.output,
-      hasWitness: expanded.type === SCRIPT_TYPES.P2WPKH,
-      signScript,
-      signType: expanded.type,
-      pubkeys: expanded.pubkeys,
-      signatures: expanded.signatures,
-      maxSignatures: expanded.maxSignatures,
-    };
-  }
-  if (witnessScript) {
-    const p2wsh = payments.p2wsh({ redeem: { output: witnessScript } });
-    if (input.prevOutScript) {
-      const p2wshAlt = payments.p2wsh({ output: input.prevOutScript });
-      if (!p2wsh.hash.equals(p2wshAlt.hash))
-        throw new Error('Witness script inconsistent with prevOutScript');
-    }
-    const expanded = expandOutput(p2wsh.redeem.output, ourPubKey);
-    if (!expanded.pubkeys)
-      throw new Error(
-        expanded.type +
-          ' not supported as witnessScript (' +
-          bscript.toASM(witnessScript) +
-          ')',
-      );
-    if (input.signatures && input.signatures.some(x => x !== undefined)) {
-      expanded.signatures = input.signatures;
-    }
-    const signScript = witnessScript;
-    if (expanded.type === SCRIPT_TYPES.P2WPKH)
-      throw new Error('P2WSH(P2WPKH) is a consensus failure');
-    return {
-      witnessScript,
-      witnessScriptType: expanded.type,
-      prevOutType: SCRIPT_TYPES.P2WSH,
-      prevOutScript: p2wsh.output,
-      hasWitness: true,
       signScript,
       signType: expanded.type,
       pubkeys: expanded.pubkeys,
@@ -635,10 +464,6 @@ function prepareInput(input, ourPubKey, redeemScript, witnessScript) {
       throw new Error(
         'PrevOutScript is ' + input.prevOutType + ', requires redeemScript',
       );
-    if (input.prevOutType === SCRIPT_TYPES.P2WSH)
-      throw new Error(
-        'PrevOutScript is ' + input.prevOutType + ', requires witnessScript',
-      );
     if (!input.prevOutScript) throw new Error('PrevOutScript is missing');
     const expanded = expandOutput(input.prevOutScript, ourPubKey);
     if (!expanded.pubkeys)
@@ -651,14 +476,10 @@ function prepareInput(input, ourPubKey, redeemScript, witnessScript) {
     if (input.signatures && input.signatures.some(x => x !== undefined)) {
       expanded.signatures = input.signatures;
     }
-    let signScript = input.prevOutScript;
-    if (expanded.type === SCRIPT_TYPES.P2WPKH) {
-      signScript = payments.p2pkh({ pubkey: expanded.pubkeys[0] }).output;
-    }
+    const signScript = input.prevOutScript;
     return {
       prevOutType: expanded.type,
       prevOutScript: input.prevOutScript,
-      hasWitness: expanded.type === SCRIPT_TYPES.P2WPKH,
       signScript,
       signType: expanded.type,
       pubkeys: expanded.pubkeys,
@@ -670,7 +491,6 @@ function prepareInput(input, ourPubKey, redeemScript, witnessScript) {
   return {
     prevOutType: SCRIPT_TYPES.P2PKH,
     prevOutScript,
-    hasWitness: false,
     signScript: prevOutScript,
     signType: SCRIPT_TYPES.P2PKH,
     pubkeys: [ourPubKey],
@@ -685,11 +505,6 @@ function build(type, input, allowIncomplete) {
       if (pubkeys.length === 0) break;
       if (signatures.length === 0) break;
       return payments.p2pkh({ pubkey: pubkeys[0], signature: signatures[0] });
-    }
-    case SCRIPT_TYPES.P2WPKH: {
-      if (pubkeys.length === 0) break;
-      if (signatures.length === 0) break;
-      return payments.p2wpkh({ pubkey: pubkeys[0], signature: signatures[0] });
     }
     case SCRIPT_TYPES.P2PK: {
       if (pubkeys.length === 0) break;
@@ -718,18 +533,6 @@ function build(type, input, allowIncomplete) {
         redeem: {
           output: redeem.output || input.redeemScript,
           input: redeem.input,
-          witness: redeem.witness,
-        },
-      });
-    }
-    case SCRIPT_TYPES.P2WSH: {
-      const redeem = build(input.witnessScriptType, input, allowIncomplete);
-      if (!redeem) return;
-      return payments.p2wsh({
-        redeem: {
-          output: input.witnessScript,
-          input: redeem.input,
-          witness: redeem.witness,
         },
       });
     }
@@ -742,8 +545,7 @@ function canSign(input) {
     input.pubkeys !== undefined &&
     input.signatures !== undefined &&
     input.signatures.length === input.pubkeys.length &&
-    input.pubkeys.length > 0 &&
-    (input.hasWitness === false || input.value !== undefined)
+    input.pubkeys.length > 0
   );
 }
 function signatureHashType(buffer) {

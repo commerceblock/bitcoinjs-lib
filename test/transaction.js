@@ -78,7 +78,7 @@ describe('Transaction', () => {
     })
 
     it('.version should be interpreted as an int32le', () => {
-      const txHex = 'ffffffff0000ffffffff'
+      const txHex = 'ffffffff000000ffffffff'
       const tx = Transaction.fromHex(txHex)
       assert.strictEqual(-1, tx.version)
       assert.strictEqual(0xffffffff, tx.locktime)
@@ -116,14 +116,6 @@ describe('Transaction', () => {
       assert.deepStrictEqual(a, b)
       assert.deepStrictEqual(a, target.slice(0, byteLength))
       assert.deepStrictEqual(b, target.slice(byteLength))
-    })
-  })
-
-  describe('hasWitnesses', () => {
-    fixtures.valid.forEach(f => {
-      it('detects if the transaction has witnesses: ' + (f.whex ? 'true' : 'false'), () => {
-        assert.strictEqual(Transaction.fromHex(f.whex ? f.whex : f.hex).hasWitnesses(), !!f.whex)
-      })
     })
   })
 
@@ -181,8 +173,8 @@ describe('Transaction', () => {
   describe('addOutput', () => {
     it('returns an index', () => {
       const tx = new Transaction()
-      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0, Buffer.alloc('e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d')), 0)
-      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0, Buffer.alloc('e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d')), 1)
+      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0, Buffer.from('e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex')), 0)
+      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0, Buffer.from('e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex')), 1)
     })
   })
 

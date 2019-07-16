@@ -12,17 +12,7 @@ function varSliceSize(someScript) {
   const length = someScript.length;
   return varuint.encodingLength(length) + length;
 }
-function vectorSize(someVector) {
-  const length = someVector.length;
-  return (
-    varuint.encodingLength(length) +
-    someVector.reduce((sum, witness) => {
-      return sum + varSliceSize(witness);
-    }, 0)
-  );
-}
 const EMPTY_SCRIPT = Buffer.allocUnsafe(0);
-const EMPTY_WITNESS = [];
 const ZERO = Buffer.from(
   '0000000000000000000000000000000000000000000000000000000000000000',
   'hex',
@@ -78,7 +68,7 @@ class Transaction {
     }
     const tx = new Transaction();
     tx.version = readInt32();
-    offset += 2;
+    offset += 1;
     const vinLen = readVarInt();
     for (let i = 0; i < vinLen; ++i) {
       tx.ins.push({
@@ -86,7 +76,6 @@ class Transaction {
         index: readUInt32(),
         script: readVarSlice(),
         sequence: readUInt32(),
-        witness: EMPTY_WITNESS,
       });
     }
     const voutLen = readVarInt();
@@ -138,7 +127,6 @@ class Transaction {
         index,
         script: scriptSig || EMPTY_SCRIPT,
         sequence: sequence,
-        witness: EMPTY_WITNESS,
       }) - 1
     );
   }
@@ -156,21 +144,15 @@ class Transaction {
       }) - 1
     );
   }
-  hasWitnesses() {
-    return this.ins.some(x => {
-      return x.witness.length !== 0;
-    });
-  }
   weight() {
-    const base = this.__byteLength(false);
-    const total = this.__byteLength(true);
-    return base * 3 + total;
+    const base = this.__byteLength();
+    return base * 3;
   }
   virtualSize() {
     return Math.ceil(this.weight() / 4);
   }
   byteLength() {
-    return this.__byteLength(true);
+    return this.__byteLength();
   }
   clone() {
     const newTx = new Transaction();
@@ -182,7 +164,6 @@ class Transaction {
         index: txIn.index,
         script: txIn.script,
         sequence: txIn.sequence,
-        witness: txIn.witness,
       };
     });
     newTx.outs = this.outs.map(txOut => {
@@ -253,113 +234,20 @@ class Transaction {
       txTmp.ins[inIndex].script = ourScript;
     }
     // serialize and hash
-    const buffer = Buffer.allocUnsafe(txTmp.__byteLength(false) + 4);
+    const buffer = Buffer.allocUnsafe(txTmp.__byteLength() + 4);
     buffer.writeInt32LE(hashType, buffer.length - 4);
-    txTmp.__toBuffer(buffer, 0, false);
+    txTmp.__toBuffer(buffer, 0);
     return bcrypto.hash256(buffer);
   }
-  hashForWitnessV0(inIndex, prevOutScript, value, hashType) {
-    typeforce(
-      types.tuple(types.UInt32, types.Buffer, types.Satoshi, types.UInt32),
-      arguments,
-    );
-    let tbuffer = Buffer.from([]);
-    let toffset = 0;
-    function writeSlice(slice) {
-      toffset += slice.copy(tbuffer, toffset);
-    }
-    function writeUInt32(i) {
-      toffset = tbuffer.writeUInt32LE(i, toffset);
-    }
-    function writeUInt64(i) {
-      toffset = bufferutils.writeUInt64LE(tbuffer, i, toffset);
-    }
-    function writeVarInt(i) {
-      varuint.encode(i, tbuffer, toffset);
-      toffset += varuint.encode.bytes;
-    }
-    function writeVarSlice(slice) {
-      writeVarInt(slice.length);
-      writeSlice(slice);
-    }
-    let hashOutputs = ZERO;
-    let hashPrevouts = ZERO;
-    let hashSequence = ZERO;
-    if (!(hashType & Transaction.SIGHASH_ANYONECANPAY)) {
-      tbuffer = Buffer.allocUnsafe(36 * this.ins.length);
-      toffset = 0;
-      this.ins.forEach(txIn => {
-        writeSlice(txIn.hash);
-        writeUInt32(txIn.index);
-      });
-      hashPrevouts = bcrypto.hash256(tbuffer);
-    }
-    if (
-      !(hashType & Transaction.SIGHASH_ANYONECANPAY) &&
-      (hashType & 0x1f) !== Transaction.SIGHASH_SINGLE &&
-      (hashType & 0x1f) !== Transaction.SIGHASH_NONE
-    ) {
-      tbuffer = Buffer.allocUnsafe(4 * this.ins.length);
-      toffset = 0;
-      this.ins.forEach(txIn => {
-        writeUInt32(txIn.sequence);
-      });
-      hashSequence = bcrypto.hash256(tbuffer);
-    }
-    if (
-      (hashType & 0x1f) !== Transaction.SIGHASH_SINGLE &&
-      (hashType & 0x1f) !== Transaction.SIGHASH_NONE
-    ) {
-      const txOutsSize = this.outs.reduce((sum, output) => {
-        return sum + 8 + varSliceSize(output.script);
-      }, 0);
-      tbuffer = Buffer.allocUnsafe(txOutsSize);
-      toffset = 0;
-      this.outs.forEach(out => {
-        writeUInt64(out.value);
-        writeVarSlice(out.script);
-        writeSlice(out.asset);
-      });
-      hashOutputs = bcrypto.hash256(tbuffer);
-    } else if (
-      (hashType & 0x1f) === Transaction.SIGHASH_SINGLE &&
-      inIndex < this.outs.length
-    ) {
-      const output = this.outs[inIndex];
-      tbuffer = Buffer.allocUnsafe(8 + varSliceSize(output.script));
-      toffset = 0;
-      writeUInt64(output.value);
-      writeVarSlice(output.script);
-      writeSlice(output.asset);
-      hashOutputs = bcrypto.hash256(tbuffer);
-    }
-    tbuffer = Buffer.allocUnsafe(156 + varSliceSize(prevOutScript));
-    toffset = 0;
-    const input = this.ins[inIndex];
-    writeUInt32(this.version);
-    writeSlice(hashPrevouts);
-    writeSlice(hashSequence);
-    writeSlice(input.hash);
-    writeUInt32(input.index);
-    writeVarSlice(prevOutScript);
-    writeUInt64(value);
-    writeUInt32(input.sequence);
-    writeSlice(hashOutputs);
-    writeUInt32(this.locktime);
-    writeUInt32(hashType);
-    return bcrypto.hash256(tbuffer);
-  }
-  getHash(forWitness) {
-    // wtxid for coinbase is always 32 bytes of 0x00
-    if (forWitness && this.isCoinbase()) return Buffer.alloc(32, 0);
-    return bcrypto.hash256(this.__toBuffer(undefined, undefined, forWitness));
+  getHash() {
+    return bcrypto.hash256(this.__toBuffer(undefined, undefined));
   }
   getId() {
     // transaction hash's are displayed in reverse order
-    return bufferutils_1.reverseBuffer(this.getHash(false)).toString('hex');
+    return bufferutils_1.reverseBuffer(this.getHash()).toString('hex');
   }
   toBuffer(buffer, initialOffset) {
-    return this.__toBuffer(buffer, initialOffset, true);
+    return this.__toBuffer(buffer, initialOffset);
   }
   toHex() {
     return this.toBuffer(undefined, undefined).toString('hex');
@@ -368,14 +256,9 @@ class Transaction {
     typeforce(types.tuple(types.Number, types.Buffer), arguments);
     this.ins[index].script = scriptSig;
   }
-  setWitness(index, witness) {
-    typeforce(types.tuple(types.Number, [types.Buffer]), arguments);
-    this.ins[index].witness = witness;
-  }
-  __byteLength(_ALLOW_WITNESS) {
-    const hasWitnesses = _ALLOW_WITNESS && this.hasWitnesses();
+  __byteLength() {
     return (
-      (hasWitnesses ? 10 : 10) +
+      9 +
       varuint.encodingLength(this.ins.length) +
       varuint.encodingLength(this.outs.length) +
       this.ins.reduce((sum, input) => {
@@ -383,16 +266,11 @@ class Transaction {
       }, 0) +
       this.outs.reduce((sum, output) => {
         return sum + 40 + varSliceSize(output.script);
-      }, 0) +
-      (hasWitnesses
-        ? this.ins.reduce((sum, input) => {
-            return sum + vectorSize(input.witness);
-          }, 0)
-        : 0)
+      }, 0)
     );
   }
-  __toBuffer(buffer, initialOffset, _ALLOW_WITNESS) {
-    if (!buffer) buffer = Buffer.allocUnsafe(this.__byteLength(_ALLOW_WITNESS));
+  __toBuffer(buffer, initialOffset) {
+    if (!buffer) buffer = Buffer.allocUnsafe(this.__byteLength());
     let offset = initialOffset || 0;
     function writeSlice(slice) {
       offset += slice.copy(buffer, offset);
@@ -419,7 +297,6 @@ class Transaction {
     }
     writeInt32(this.version);
     // No segwit support at the moment, flags are 00
-    writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
     writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
     writeVarInt(this.ins.length);
     this.ins.forEach(txIn => {

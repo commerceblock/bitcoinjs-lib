@@ -18,7 +18,7 @@ export declare class TransactionBuilder {
     addOutput(scriptPubKey: string | Buffer, value: number, asset: string | Buffer): number;
     build(): Transaction;
     buildIncomplete(): Transaction;
-    sign(vin: number, keyPair: ECPairInterface, redeemScript?: Buffer, hashType?: number, witnessValue?: number, witnessScript?: Buffer): void;
+    sign(vin: number, keyPair: ECPairInterface, redeemScript?: Buffer, hashType?: number): void;
     private __addInputUnsafe;
     private __build;
     private __canModifyInputs;
