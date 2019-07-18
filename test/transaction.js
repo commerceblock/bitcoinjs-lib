@@ -5,7 +5,7 @@ const fixtures = require('./fixtures/transaction')
 const Transaction = require('..').Transaction
 
 describe('Transaction', () => {
-  function fromRaw (raw, noWitness) {
+  function fromRaw (raw) {
     const tx = new Transaction()
     tx.version = raw.version
     tx.locktime = raw.locktime
@@ -21,14 +21,6 @@ describe('Transaction', () => {
       }
 
       tx.addInput(txHash, txIn.index, txIn.sequence, scriptSig)
-
-      if (!noWitness && txIn.witness) {
-        const witness = txIn.witness.map(x => {
-          return Buffer.from(x, 'hex')
-        })
-
-        tx.setWitness(i, witness)
-      }
     })
 
     raw.outs.forEach(txOut => {
@@ -56,14 +48,6 @@ describe('Transaction', () => {
 
         assert.strictEqual(actual.toHex(), txHex)
       })
-
-      if (f.whex) {
-        it('imports ' + f.description + ' (' + id + ') as witness', () => {
-          const actual = Transaction.fromHex(f.whex)
-
-          assert.strictEqual(actual.toHex(), f.whex)
-        })
-      }
     }
 
     fixtures.valid.forEach(importExport)
@@ -88,16 +72,9 @@ describe('Transaction', () => {
   describe('toBuffer/toHex', () => {
     fixtures.valid.forEach(f => {
       it('exports ' + f.description + ' (' + f.id + ')', () => {
-        const actual = fromRaw(f.raw, true)
+        const actual = fromRaw(f.raw)
         assert.strictEqual(actual.toHex(), f.hex)
       })
-
-      if (f.whex) {
-        it('exports ' + f.description + ' (' + f.id + ') as witness', () => {
-          const wactual = fromRaw(f.raw)
-          assert.strictEqual(wactual.toHex(), f.whex)
-        })
-      }
     })
 
     it('accepts target Buffer and offset parameters', () => {
@@ -149,12 +126,11 @@ describe('Transaction', () => {
       assert.strictEqual(tx.addInput(prevTxHash, 0), 1)
     })
 
-    it('defaults to empty script, witness and 0xffffffff SEQUENCE number', () => {
+    it('defaults to empty script, 0xffffffff SEQUENCE number', () => {
       const tx = new Transaction()
       tx.addInput(prevTxHash, 0)
 
       assert.strictEqual(tx.ins[0].script.length, 0)
-      assert.strictEqual(tx.ins[0].witness.length, 0)
       assert.strictEqual(tx.ins[0].sequence, 0xffffffff)
     })
 
@@ -255,14 +231,6 @@ describe('Transaction', () => {
 
         assert.strictEqual(tx.hashForSignature(f.inIndex, script, f.type).toString('hex'), f.hash)
       })
-    })
-  })
-
-  describe('setWitness', () => {
-    it('only accepts a a witness stack (Array of Buffers)', () => {
-      assert.throws(() => {
-        (new Transaction()).setWitness(0, 'foobar')
-      }, /Expected property "1" of type \[Buffer], got String "foobar"/)
     })
   })
 })

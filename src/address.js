@@ -50,19 +50,12 @@ function fromOutputScript(output, network) {
   try {
     return payments.p2sh({ output, network }).address;
   } catch (e) {}
-  try {
-    return payments.p2wpkh({ output, network }).address;
-  } catch (e) {}
-  try {
-    return payments.p2wsh({ output, network }).address;
-  } catch (e) {}
   throw new Error(bscript.toASM(output) + ' has no matching Address');
 }
 exports.fromOutputScript = fromOutputScript;
 function toOutputScript(address, network) {
   network = network || networks.bitcoin;
   let decodeBase58;
-  let decodeBech32;
   try {
     decodeBase58 = fromBase58Check(address);
   } catch (e) {}
@@ -71,20 +64,6 @@ function toOutputScript(address, network) {
       return payments.p2pkh({ hash: decodeBase58.hash }).output;
     if (decodeBase58.version === network.scriptHash)
       return payments.p2sh({ hash: decodeBase58.hash }).output;
-  } else {
-    try {
-      decodeBech32 = fromBech32(address);
-    } catch (e) {}
-    if (decodeBech32) {
-      if (decodeBech32.prefix !== network.bech32)
-        throw new Error(address + ' has an invalid prefix');
-      if (decodeBech32.version === 0) {
-        if (decodeBech32.data.length === 20)
-          return payments.p2wpkh({ hash: decodeBech32.data }).output;
-        if (decodeBech32.data.length === 32)
-          return payments.p2wsh({ hash: decodeBech32.data }).output;
-      }
-    }
   }
   throw new Error(address + ' has no matching Script');
 }

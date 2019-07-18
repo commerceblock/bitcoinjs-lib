@@ -4,8 +4,6 @@ import * as bscript from '../../script';
 import * as p2ms from '../multisig';
 import * as p2pk from '../pubkey';
 import * as p2pkh from '../pubkeyhash';
-import * as p2wpkho from '../witnesspubkeyhash/output';
-import * as p2wsho from '../witnessscripthash/output';
 
 export function check(
   script: Buffer | Array<number | Buffer>,
@@ -27,13 +25,6 @@ export function check(
 
   // is redeemScriptSig push only?
   if (!bscript.isPushOnly(scriptSigChunks)) return false;
-
-  // is witness?
-  if (chunks.length === 1) {
-    return (
-      p2wsho.check(redeemScriptChunks) || p2wpkho.check(redeemScriptChunks)
-    );
-  }
 
   // match types
   if (

@@ -2,7 +2,7 @@ const { describe, it } = require('mocha')
 const assert = require('assert')
 const u = require('./payments.utils')
 
-;['embed', 'p2ms', 'p2pk', 'p2pkh', 'p2sh', 'p2wpkh', 'p2wsh'].forEach(p => {
+;['embed', 'p2ms', 'p2pk', 'p2pkh', 'p2sh'].forEach(p => {
   describe(p, () => {
     let fn
     let payment = require('../src/payments/' + p)

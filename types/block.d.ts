@@ -8,9 +8,13 @@ export declare class Block {
     version: number;
     prevHash?: Buffer;
     merkleRoot?: Buffer;
+    contractHash?: Buffer;
+    attestationHash?: Buffer;
+    mappingHash?: Buffer;
     timestamp: number;
-    bits: number;
-    nonce: number;
+    blockHeight: number;
+    challenge?: Buffer;
+    proof?: Buffer;
     transactions?: Transaction[];
     byteLength(headersOnly: boolean): number;
     getHash(): Buffer;

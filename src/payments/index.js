@@ -10,9 +10,5 @@ const p2pkh_1 = require('./p2pkh');
 exports.p2pkh = p2pkh_1.p2pkh;
 const p2sh_1 = require('./p2sh');
 exports.p2sh = p2sh_1.p2sh;
-const p2wpkh_1 = require('./p2wpkh');
-exports.p2wpkh = p2wpkh_1.p2wpkh;
-const p2wsh_1 = require('./p2wsh');
-exports.p2wsh = p2wsh_1.p2wsh;
 // TODO
 // witness commitment

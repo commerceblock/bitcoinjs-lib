@@ -57,22 +57,6 @@
       }
     },
     {
-      "description": "p2sh-p2wpkh, out (from redeem)",
-      "arguments": {
-        "redeem": {
-          "hash": "this is P2WPKH context, unknown and ignored by P2SH",
-          "output": "OP_0 c30afa58ae0673b00a45b5c17dff4633780f1400"
-        }
-      },
-      "expected": {
-        "address": "325CuTNSYmvurXaBmhNFer5zDkKnDXZggu",
-        "hash": "0432515d8fe8de31be8207987fc6d67b29d5e7cc",
-        "output": "OP_HASH160 0432515d8fe8de31be8207987fc6d67b29d5e7cc OP_EQUAL",
-        "input": null,
-        "witness": null
-      }
-    },
-    {
       "description": "p2sh-p2pk, out (from redeem)",
       "arguments": {
         "redeem": {

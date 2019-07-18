@@ -5,14 +5,6 @@ const Block = require('..').Block
 const fixtures = require('./fixtures/block')
 
 describe('Block', () => {
-  describe('version', () => {
-    it('should be interpreted as an int32le', () => {
-      const blockHex = 'ffffffff0000000000000000000000000000000000000000000000000000000000000000414141414141414141414141414141414141414141414141414141414141414101000000020000000300000000'
-      const block = Block.fromHex(blockHex)
-      assert.strictEqual(-1, block.version)
-      assert.strictEqual(1, block.timestamp)
-    })
-  })
 
   describe('calculateTarget', () => {
     fixtures.targets.forEach(f => {
@@ -57,7 +49,7 @@ describe('Block', () => {
       })
 
       it('exports ' + f.description, () => {
-        assert.strictEqual(block.toHex(true), f.hex.slice(0, 160))
+        assert.strictEqual(block.toHex(true), !f.challenge ? f.hex.slice(0, 346) : f.hex.slice(0, 346 + f.challenge.length + 2))
         assert.strictEqual(block.toHex(), f.hex)
       })
     })
@@ -102,7 +94,7 @@ describe('Block', () => {
     })
 
     fixtures.valid.forEach(f => {
-      if (f.hex.length === 160) return
+      if (f.transactions === undefined) return
 
       let block
 
@@ -118,7 +110,7 @@ describe('Block', () => {
 
   describe('checkTxRoots', () => {
     fixtures.valid.forEach(f => {
-      if (f.hex.length === 160) return
+      if (f.transactions === undefined) return
 
       let block
 

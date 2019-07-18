@@ -74,12 +74,6 @@ export function fromOutputScript(output: Buffer, network?: Network): string {
   try {
     return payments.p2sh({ output, network }).address as string;
   } catch (e) {}
-  try {
-    return payments.p2wpkh({ output, network }).address as string;
-  } catch (e) {}
-  try {
-    return payments.p2wsh({ output, network }).address as string;
-  } catch (e) {}
 
   throw new Error(bscript.toASM(output) + ' has no matching Address');
 }
@@ -88,7 +82,6 @@ export function toOutputScript(address: string, network?: Network): Buffer {
   network = network || networks.bitcoin;
 
   let decodeBase58: Base58CheckResult | undefined;
-  let decodeBech32: Bech32Result | undefined;
   try {
     decodeBase58 = fromBase58Check(address);
   } catch (e) {}
@@ -98,21 +91,6 @@ export function toOutputScript(address: string, network?: Network): Buffer {
       return payments.p2pkh({ hash: decodeBase58.hash }).output as Buffer;
     if (decodeBase58.version === network.scriptHash)
       return payments.p2sh({ hash: decodeBase58.hash }).output as Buffer;
-  } else {
-    try {
-      decodeBech32 = fromBech32(address);
-    } catch (e) {}
-
-    if (decodeBech32) {
-      if (decodeBech32.prefix !== network.bech32)
-        throw new Error(address + ' has an invalid prefix');
-      if (decodeBech32.version === 0) {
-        if (decodeBech32.data.length === 20)
-          return payments.p2wpkh({ hash: decodeBech32.data }).output as Buffer;
-        if (decodeBech32.data.length === 32)
-          return payments.p2wsh({ hash: decodeBech32.data }).output as Buffer;
-      }
-    }
   }
 
   throw new Error(address + ' has no matching Script');

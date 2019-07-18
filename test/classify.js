@@ -10,19 +10,13 @@ const nullData = require('../src/templates/nulldata')
 const pubKey = require('../src/templates/pubkey')
 const pubKeyHash = require('../src/templates/pubkeyhash')
 const scriptHash = require('../src/templates/scripthash')
-const witnessPubKeyHash = require('../src/templates/witnesspubkeyhash')
-const witnessScriptHash = require('../src/templates/witnessscripthash')
-const witnessCommitment = require('../src/templates/witnesscommitment')
 
 const tmap = {
   pubKey,
   pubKeyHash,
   scriptHash,
-  witnessPubKeyHash,
-  witnessScriptHash,
   multisig,
-  nullData,
-  witnessCommitment
+  nullData
 }
 
 describe('classify', () => {
@@ -68,19 +62,14 @@ describe('classify', () => {
     'pubKey',
     'pubKeyHash',
     'scriptHash',
-    'witnessPubKeyHash',
-    'witnessScriptHash',
     'multisig',
-    'nullData',
-    'witnessCommitment'
+    'nullData'
   ].forEach(name => {
     const inputType = tmap[name].input
     const outputType = tmap[name].output
 
     describe(name + '.input.check', () => {
       fixtures.valid.forEach(f => {
-        if (name.toLowerCase() === classify.types.P2WPKH) return
-        if (name.toLowerCase() === classify.types.P2WSH) return
         const expected = name.toLowerCase() === f.type.toLowerCase()
 
         if (inputType && f.input) {
@@ -127,8 +116,6 @@ describe('classify', () => {
           it('returns ' + expected + ' for ' + f.output, () => {
             const output = bscript.fromASM(f.output)
 
-            if (name.toLowerCase() === 'nulldata' && f.type === classify.types.WITNESS_COMMITMENT) return
-            if (name.toLowerCase() === 'witnesscommitment' && f.type === classify.types.NULLDATA) return
             assert.strictEqual(outputType.check(output), expected)
           })
         }
