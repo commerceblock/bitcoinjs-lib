@@ -67,9 +67,10 @@ export class TransactionBuilder {
     // Copy outputs (done first to avoid signature invalidation)
     transaction.outs.forEach(txOut => {
       txb.addOutput(
-        txOut.script,
-        (txOut as Output).value,
         (txOut as Output).asset,
+        (txOut as Output).value,
+        (txOut as Output).nonce,
+        txOut.script
       );
     });
 
@@ -174,9 +175,10 @@ export class TransactionBuilder {
   }
 
   addOutput(
-    scriptPubKey: string | Buffer,
-    value: number,
     asset: string | Buffer,
+    value: number,
+    nonce: string | Buffer,
+    scriptPubKey: string | Buffer
   ): number {
     if (!this.__canModifyOutputs()) {
       throw new Error('No, this would invalidate signatures');
@@ -191,7 +193,11 @@ export class TransactionBuilder {
       asset = Buffer.from(asset, 'hex');
     }
 
-    return this.__TX.addOutput(scriptPubKey, value, asset);
+    if (typeof nonce === 'string') {
+      nonce = Buffer.from(nonce, 'hex');
+    }
+
+    return this.__TX.addOutput(asset, value, nonce, scriptPubKey);
   }
 
   build(): Transaction {

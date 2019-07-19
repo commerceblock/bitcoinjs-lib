@@ -33,12 +33,6 @@ export class Block {
       return i;
     };
 
-    const readUInt8 = (): number => {
-      const i = buffer.readUInt8(offset);
-      offset += 1;
-      return i;
-    };
-
     const block = new Block();
     block.version = readInt32();
     block.prevHash = readSlice(32);
@@ -48,22 +42,6 @@ export class Block {
     block.mappingHash = readSlice(32);
     block.timestamp = readUInt32();
     block.blockHeight = readUInt32();
-
-    const challengeSize = readUInt8();
-
-    if (buffer.length === 173) return block;
-
-    let proofSize = 0;
-
-    if (challengeSize > 0) {
-      block.challenge = readSlice(challengeSize);
-      proofSize = readUInt8();
-      if (proofSize > 0) {
-        block.proof = readSlice(proofSize);
-      }
-    }
-
-    if (buffer.length === 173 + challengeSize + 1 + proofSize) return block;
 
     const readVarInt = (): number => {
       const vi = varuint.decode(buffer, offset);
@@ -76,6 +54,22 @@ export class Block {
       offset += tx.byteLength();
       return tx;
     };
+
+    const challengeSize = readVarInt();
+
+    if (buffer.length === 173) return block;
+
+    let proofSize = 0;
+
+    if (challengeSize > 0) {
+      block.challenge = readSlice(challengeSize);
+      proofSize = readVarInt();
+      if (proofSize > 0) {
+        block.proof = readSlice(proofSize);
+      }
+    }
+
+    if (buffer.length === 173 + challengeSize + 1 + proofSize) return block;
 
     const nTransactions = readVarInt();
     block.transactions = [];

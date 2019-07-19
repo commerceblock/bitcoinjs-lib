@@ -1,13 +1,25 @@
 /// <reference types="node" />
 export interface BlankOutput {
-    script: Buffer;
-    valueBuffer: Buffer;
     asset: Buffer;
+    valueBuffer: Buffer;
+    nonce: Buffer;
+    script: Buffer;
 }
 export interface Output {
-    script: Buffer;
-    value: number;
     asset: Buffer;
+    value: number;
+    nonce: Buffer;
+    script: Buffer;
+}
+export interface WitnessInput {
+    issuanceRangeProof: Buffer;
+    inflationRangeProof: Buffer;
+    scriptWitness: Array<Buffer>;
+    peginWitness: Array<Buffer>;
+}
+export interface WitnessOutput {
+    surjectionProof: Buffer;
+    rangeProof: Buffer;
 }
 declare type OpenOutput = Output | BlankOutput;
 export interface Input {
@@ -15,6 +27,7 @@ export interface Input {
     index: number;
     script: Buffer;
     sequence: number;
+    issuance: object;
 }
 export declare class Transaction {
     static readonly DEFAULT_SEQUENCE = 4294967295;
@@ -31,9 +44,11 @@ export declare class Transaction {
     locktime: number;
     ins: Input[];
     outs: OpenOutput[];
+    witness_in: WitnessInput[];
+    witness_out: WitnessOutput[];
     isCoinbase(): boolean;
-    addInput(hash: Buffer, index: number, sequence?: number, scriptSig?: Buffer): number;
-    addOutput(scriptPubKey: Buffer, value: number, asset: Buffer): number;
+    addInput(hash: Buffer, index: number, sequence?: number, scriptSig?: Buffer, inIssuance?: object): number;
+    addOutput(asset: Buffer, value: Buffer, nonce: Buffer, scriptPubKey: Buffer): number;
     weight(): number;
     virtualSize(): number;
     byteLength(): number;

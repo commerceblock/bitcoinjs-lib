@@ -27,7 +27,7 @@ describe('Block', () => {
         assert.strictEqual(block.timestamp, f.timestamp)
         assert.strictEqual(block.bits, f.bits)
         assert.strictEqual(block.nonce, f.nonce)
-        assert.strictEqual(!block.transactions, f.hex.length === 160)
+        assert.strictEqual(!block.transactions, f.hex.length === !f.challenge ? f.hex.slice(0, 346) : f.hex.slice(0, 346 + f.challenge.length + 2))
       })
     })
 
@@ -120,20 +120,6 @@ describe('Block', () => {
 
       it('returns ' + f.valid + ' for ' + f.id, () => {
         assert.strictEqual(block.checkTxRoots(), true)
-      })
-    })
-  })
-
-  describe('checkProofOfWork', () => {
-    fixtures.valid.forEach(f => {
-      let block
-
-      beforeEach(() => {
-        block = Block.fromHex(f.hex)
-      })
-
-      it('returns ' + f.valid + ' for ' + f.id, () => {
-        assert.strictEqual(block.checkProofOfWork(), f.valid)
       })
     })
   })

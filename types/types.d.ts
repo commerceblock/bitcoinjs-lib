@@ -15,6 +15,7 @@ export declare const Boolean: any;
 export declare const String: any;
 export declare const Buffer: any;
 export declare const Hex: any;
+export declare const Object: any;
 export declare const maybe: any;
 export declare const tuple: any;
 export declare const UInt8: any;

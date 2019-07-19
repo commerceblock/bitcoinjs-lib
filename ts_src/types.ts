@@ -41,6 +41,7 @@ export const Boolean = typeforce.Boolean; // tslint:disable-line variable-name
 export const String = typeforce.String; // tslint:disable-line variable-name
 export const Buffer = typeforce.Buffer;
 export const Hex = typeforce.Hex;
+export const Object = typeforce.Object;
 export const maybe = typeforce.maybe;
 export const tuple = typeforce.tuple;
 export const UInt8 = typeforce.UInt8;
