@@ -14,6 +14,22 @@ function varSliceSize(someScript: Buffer): number {
   return varuint.encodingLength(length) + length;
 }
 
+function valueFromAmount(amount: number): string {
+  const sign = amount < 0;
+  let prefix = '';
+  if (sign) prefix = '-';
+
+  const nAbs = sign ? -amount : amount;
+  const quotient = nAbs / 100000000;
+  const remainder = nAbs % 100000000;
+  // Have to pad zeros manually as typescript does not support padStart
+  // unless it is defined to compile with newer ES2017 standard
+  let remainderStr = remainder.toString();
+  remainderStr = '0'.repeat(8 - remainderStr.length) + remainderStr;
+  const numString = prefix + quotient.toString() + '.' + remainderStr;
+  return numString;
+}
+
 const EMPTY_SCRIPT: Buffer = Buffer.allocUnsafe(0);
 const ZERO: Buffer = Buffer.from(
   '0000000000000000000000000000000000000000000000000000000000000000',
@@ -23,44 +39,55 @@ const ONE: Buffer = Buffer.from(
   '0000000000000000000000000000000000000000000000000000000000000001',
   'hex',
 );
+const WITNESS_SCALE_FACTOR = 4;
 const MINUS_1 = 4294967295;
 const OUTPOINT_ISSUANCE_FLAG = 1 << 31;
 const OUTPOINT_INDEX_MASK = 0x3fffffff;
 const CONFIDENTIAL_COMMITMENT = 33; // default size of confidential commitments (i.e. asset, value, nonce)
-const CONFIDENTIAL_VALUE = 9; // explciti size of confidential values
+const CONFIDENTIAL_VALUE = 9; // explicit size of confidential values
 const VALUE_UINT64_MAX: Buffer = Buffer.from('ffffffffffffffff', 'hex');
 const BLANK_OUTPUT: BlankOutput = {
   asset: ZERO,
-  valueBuffer: VALUE_UINT64_MAX,
+  nValue: VALUE_UINT64_MAX,
   nonce: ZERO,
   script: EMPTY_SCRIPT,
 };
 
 export interface BlankOutput {
   asset: Buffer;
-  valueBuffer: Buffer;
+  nValue: Buffer;
   nonce: Buffer;
   script: Buffer;
+  value?: string;
+  amountCommitment?: string;
 }
 
 export interface Output {
   asset: Buffer;
-  amount: Buffer;
+  nValue: Buffer;
   nonce: Buffer;
   script: Buffer;
-  value?: number;
+  value?: string;
+  amountCommitment?: string;
 }
 
-export interface WitnessInput{
+export interface WitnessInput {
   issuanceRangeProof: Buffer;
   inflationRangeProof: Buffer;
-  scriptWitness: Array<Buffer>;
-  peginWitness: Array<Buffer>;
+  scriptWitness: Buffer[];
+  peginWitness: Buffer[];
 }
 
-export interface WitnessOutput{
+export interface WitnessOutput {
   surjectionProof: Buffer;
   rangeProof: Buffer;
+}
+
+export interface Issuance {
+  assetBlindingNonce: Buffer;
+  assetEntropy: Buffer;
+  assetamount: Buffer;
+  tokenamount: Buffer;
 }
 
 type OpenOutput = Output | BlankOutput;
@@ -70,10 +97,8 @@ export interface Input {
   index: number;
   script: Buffer;
   sequence: number;
-  issuance: object;
+  issuance?: Issuance;
 }
-
-declare function createObject(o: object | undefined): object;
 
 export class Transaction {
   static readonly DEFAULT_SEQUENCE = 0xffffffff;
@@ -120,38 +145,45 @@ export class Transaction {
       return i;
     }
 
+    function readIterableVarSlice(): Buffer[] {
+      const itSize = readVarInt();
+      const itList: Buffer[] = [];
+      for (let i = 0; i < itSize; ++i) itList.push(readVarSlice());
+      return itList;
+    }
+
     // CConfidentialAsset size 33, prefixA 10, prefixB 11
     function readConfidentialAsset(): Buffer {
-        const version = readUInt8();
-        const versionBuffer = buffer.slice(offset - 1, offset);
-        if (version === 1 || version === 0xff)
-            return Buffer.concat([
-              versionBuffer,
-              readSlice(CONFIDENTIAL_COMMITMENT - 1),
-            ]);
-        else if (version === 10 || version === 11)
-            return Buffer.concat([
-              versionBuffer,
-              readSlice(CONFIDENTIAL_COMMITMENT - 1),
-            ]);
-        return versionBuffer;
+      const version = readUInt8();
+      const versionBuffer = buffer.slice(offset - 1, offset);
+      if (version === 1 || version === 0xff)
+        return Buffer.concat([
+          versionBuffer,
+          readSlice(CONFIDENTIAL_COMMITMENT - 1),
+        ]);
+      else if (version === 10 || version === 11)
+        return Buffer.concat([
+          versionBuffer,
+          readSlice(CONFIDENTIAL_COMMITMENT - 1),
+        ]);
+      return versionBuffer;
     }
 
     // CConfidentialNonce size 33, prefixA 2, prefixB 3
     function readConfidentialNonce(): Buffer {
-        const version = readUInt8();
-        const versionBuffer = buffer.slice(offset - 1, offset);
-        if (version === 1 || version === 0xff)
-            return Buffer.concat([
-              versionBuffer,
-              readSlice(CONFIDENTIAL_COMMITMENT - 1),
-            ]);
-        else if (version === 2 || version === 3)
-            return Buffer.concat([
-              versionBuffer,
-              readSlice(CONFIDENTIAL_COMMITMENT - 1),
-            ]);
-        return versionBuffer;
+      const version = readUInt8();
+      const versionBuffer = buffer.slice(offset - 1, offset);
+      if (version === 1 || version === 0xff)
+        return Buffer.concat([
+          versionBuffer,
+          readSlice(CONFIDENTIAL_COMMITMENT - 1),
+        ]);
+      else if (version === 2 || version === 3)
+        return Buffer.concat([
+          versionBuffer,
+          readSlice(CONFIDENTIAL_COMMITMENT - 1),
+        ]);
+      return versionBuffer;
     }
 
     // CConfidentialValue size 9, prefixA 8, prefixB 9
@@ -172,58 +204,54 @@ export class Transaction {
       return versionBuffer;
     }
 
-    function readWitnessIn(fields: number): Array<WitnessInput> {
-        const witInputArray = [];
-        for (let i = 0; i < fields; ++i)
-          witInputArray.push(readWitnessInField());
-        return witInputArray;
+    function readWitnessIn(fields: number): WitnessInput[] {
+      const witInputArray = [];
+      for (let i = 0; i < fields; ++i) witInputArray.push(readWitnessInField());
+      return witInputArray;
     }
 
     function readWitnessInField(): WitnessInput {
-        const issuance_range_proof = readVarSlice();
-        const inflation_range_proof = readVarSlice();
+      const issuancerangeproof = readVarSlice();
+      const inflationrangeproof = readVarSlice();
 
-        const scriptSize = readVarInt();
-        const scriptWitness = [];
-        for (let i = 0; i < scriptSize; ++i)
-          scriptWitness.push(readVarSlice());
+      const scriptWitnessArr = readIterableVarSlice();
+      const peginWitnessArr = readIterableVarSlice();
 
-        const peginSize = readVarInt();
-        const peginWitness = [];
-        for (let i = 0; i < peginSize; ++i)
-          peginWitness.push(readVarSlice());
-
-        return {issuanceRangeProof: issuance_range_proof, inflationRangeProof: inflation_range_proof, 
-            scriptWitness: scriptWitness, peginWitness: peginWitness}
+      return {
+        issuanceRangeProof: issuancerangeproof,
+        inflationRangeProof: inflationrangeproof,
+        scriptWitness: scriptWitnessArr,
+        peginWitness: peginWitnessArr,
+      };
     }
 
-    function readWitnessOut(fields: number): Array<WitnessOutput> {
-        const witOutputArray = [];
-        for (let i = 0; i < fields; ++i)
-          witOutputArray.push(readWitnessOutField());
-        return witOutputArray;
+    function readWitnessOut(fields: number): WitnessOutput[] {
+      const witOutputArray = [];
+      for (let i = 0; i < fields; ++i)
+        witOutputArray.push(readWitnessOutField());
+      return witOutputArray;
     }
 
     function readWitnessOutField(): WitnessOutput {
-        const surjection_proof = readVarSlice();
-        const range_proof = readVarSlice();
+      const surjectionproof = readVarSlice();
+      const rangeproof = readVarSlice();
 
-        return {surjectionProof: surjection_proof, rangeProof: range_proof}
+      return { surjectionProof: surjectionproof, rangeProof: rangeproof };
     }
 
-    function valueFromAmount(amount : number): number {
-    {
-        const sign = amount < 0;
-        let prefix = ""
-        if (sign)
-          prefix = "-"
+    function readIssuance(): Issuance {
+      const issuanceNonce = readSlice(32);
+      const issuanceEntropy = readSlice(32);
 
-        const n_abs = (sign ? -amount : amount);
-        const quotient = n_abs / 100000000;
-        const remainder = n_abs % 100000000;
-        const numString = prefix + (quotient.toPrecision(remainder)).toString();
-        return numString;
-                // strprintf("%s%d.%08d", sign ? "-" : "", quotient, remainder));
+      const amount = readConfidentialValue();
+      const inflation = readConfidentialValue();
+
+      return {
+        assetBlindingNonce: issuanceNonce,
+        assetEntropy: issuanceEntropy,
+        assetamount: amount,
+        tokenamount: inflation,
+      };
     }
 
     const tx = new Transaction();
@@ -238,24 +266,13 @@ export class Transaction {
       const inScript = readVarSlice();
       const inSequence = readUInt32();
 
-      let inIssuance = {};
+      let inIssuance: Issuance | undefined;
       if (inIndex !== MINUS_1) {
         if (inIndex & OUTPOINT_ISSUANCE_FLAG) {
-          const issuanceNonce = readSlice(32);
-          const issuanceEntropy = readSlice(32);
-
-          const amount = readConfidentialValue();
-          const inflation = readConfidentialValue();
-
-          inIssuance = createObject({
-            assetBlindingNonce: issuanceNonce,
-            assetEntropy: issuanceEntropy,
-            assetamount: amount,
-            tokenamount: inflation,
-          });
+          inIssuance = readIssuance();
         }
+        inIndex &= OUTPOINT_INDEX_MASK;
       }
-      inIndex &= OUTPOINT_INDEX_MASK;
 
       tx.ins.push({
         hash: inHash,
@@ -268,38 +285,43 @@ export class Transaction {
 
     const voutLen = readVarInt();
     for (let i = 0; i < voutLen; ++i) {
-
       const outValueBuffer = readConfidentialValue();
 
-      // TODO we are not transforming amount into value and are not handling confidential values (they are represented as -1)
-      let outValue = -1;
+      // TODO We are not handling confidential values
+      let outValue: string | undefined;
+      let outAmountCommitment: string | undefined;
 
-      if (outValueBuffer.readUIntBE(0, 1) == 1 && outValueBuffer.length == 9)
-        outValue = bufferutils.readUInt64LE(reverseBuffer(outValueBuffer.slice(1,9)), 0);
+      if (outValueBuffer.readUIntBE(0, 1) === 1 && outValueBuffer.length === 9)
+        outValue = valueFromAmount(
+          bufferutils.readUInt64LE(
+            reverseBuffer(outValueBuffer.slice(1, 9)),
+            0,
+          ),
+        );
+      else outAmountCommitment = outValueBuffer.toString('hex');
 
       tx.outs.push({
         asset: readConfidentialAsset(),
-        value: outValue,
+        nValue: outValueBuffer,
         nonce: readConfidentialNonce(),
         script: readVarSlice(),
+        value: outValue,
+        amountCommitment: outAmountCommitment,
       });
-
     }
 
     tx.locktime = readUInt32();
 
-    let witness_in: Array<WitnessInput> = [];
-    let witness_out: Array<WitnessOutput> = [];
+    let witnessIn: WitnessInput[] = [];
+    let witnessOut: WitnessOutput[] = [];
 
-    if (flag === 1){
-      witness_in = readWitnessIn(tx.ins.length)
-      witness_out = readWitnessOut(tx.outs.length)
-      // done in electrum, may have to modify this to produce hashes
-      // flag ^= 1
+    if (flag === 1) {
+      witnessIn = readWitnessIn(tx.ins.length);
+      witnessOut = readWitnessOut(tx.outs.length);
     }
 
-    tx.witness_in = tx.witness_in.concat(witness_in);
-    tx.witness_out = tx.witness_out.concat(witness_out);
+    tx.witnessIn = tx.witnessIn.concat(witnessIn);
+    tx.witnessOut = tx.witnessOut.concat(witnessOut);
 
     if (_NO_STRICT) return tx;
     if (offset !== buffer.length)
@@ -324,8 +346,8 @@ export class Transaction {
   locktime: number = 0;
   ins: Input[] = [];
   outs: OpenOutput[] = [];
-  witness_in: WitnessInput[] = [];
-  witness_out: WitnessOutput[] = [];
+  witnessIn: WitnessInput[] = [];
+  witnessOut: WitnessOutput[] = [];
 
   isCoinbase(): boolean {
     return (
@@ -338,7 +360,7 @@ export class Transaction {
     index: number,
     sequence?: number,
     scriptSig?: Buffer,
-    inIssuance?: object,
+    inIssuance?: Issuance,
   ): number {
     typeforce(
       types.tuple(
@@ -362,47 +384,70 @@ export class Transaction {
         index,
         script: scriptSig || EMPTY_SCRIPT,
         sequence: sequence as number,
-        issuance: inIssuance || {},
+        issuance: inIssuance,
       }) - 1
     );
   }
 
-  addOutput(asset: Buffer, value: Buffer, nonce: Buffer, scriptPubKey: Buffer): number {
+  addOutput(
+    _asset: Buffer,
+    _nValue: Buffer,
+    _nonce: Buffer,
+    scriptPubKey: Buffer,
+  ): number {
     typeforce(
       types.tuple(types.Buffer, types.Satoshi, types.Buffer, types.Buffer),
       arguments,
     );
 
+    let outValue: string | undefined;
+    let outAmountCommitment: string | undefined;
+
+    if (_nValue.readUIntBE(0, 1) === 1 && _nValue.length === 9)
+      outValue = valueFromAmount(
+        bufferutils.readUInt64LE(reverseBuffer(_nValue.slice(1, 9)), 0),
+      );
+    else outAmountCommitment = _nValue.toString('hex');
+
     // Add the output and return the output's index
     return (
       this.outs.push({
-        asset,
-        value,
-        nonce,
+        asset: _asset,
+        nValue: _nValue,
+        nonce: _nonce,
         script: scriptPubKey,
+        value: outValue,
+        amountCommitment: outAmountCommitment,
       }) - 1
     );
   }
 
+  hasWitnesses(): boolean {
+    return this.witnessIn.length > 0 && this.witnessOut.length > 0;
+  }
+
   weight(): number {
-    const base = this.__byteLength();
-    return base * 3;
+    const base = this.__byteLength(false);
+    const total = this.__byteLength(true);
+    return base * (WITNESS_SCALE_FACTOR - 1) + total;
   }
 
   virtualSize(): number {
-    return Math.ceil(this.weight() / 4);
+    const vsize =
+      (this.weight() + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
+    return Math.floor(vsize);
   }
 
   byteLength(): number {
-    return this.__byteLength();
+    return this.__byteLength(true);
   }
 
   clone(): Transaction {
     const newTx = new Transaction();
     newTx.version = this.version;
     newTx.locktime = this.locktime;
-    newTx.witness_in = this.witness_in;
-    newTx.witness_out = this.witness_out;
+    newTx.witnessIn = this.witnessIn;
+    newTx.witnessOut = this.witnessOut;
 
     newTx.ins = this.ins.map(txIn => {
       return {
@@ -417,9 +462,11 @@ export class Transaction {
     newTx.outs = this.outs.map(txOut => {
       return {
         asset: txOut.asset,
-        value: (txOut as Output).value,
+        nValue: txOut.nValue,
         nonce: txOut.nonce,
         script: txOut.script,
+        value: (txOut as Output).value,
+        amountCommitment: txOut.amountCommitment,
       };
     });
 
@@ -503,15 +550,15 @@ export class Transaction {
     }
 
     // serialize and hash
-    const buffer: Buffer = Buffer.allocUnsafe(txTmp.__byteLength() + 4);
+    const buffer: Buffer = Buffer.allocUnsafe(txTmp.__byteLength(false) + 4);
     buffer.writeInt32LE(hashType, buffer.length - 4);
-    txTmp.__toBuffer(buffer, 0);
+    txTmp.__toBuffer(buffer, 0, false, true);
 
     return bcrypto.hash256(buffer);
   }
 
   getHash(): Buffer {
-    return bcrypto.hash256(this.__toBuffer(undefined, undefined));
+    return bcrypto.hash256(this.__toBuffer(undefined, undefined, false, true));
   }
 
   getId(): string {
@@ -520,7 +567,7 @@ export class Transaction {
   }
 
   toBuffer(buffer?: Buffer, initialOffset?: number): Buffer {
-    return this.__toBuffer(buffer, initialOffset);
+    return this.__toBuffer(buffer, initialOffset, true);
   }
 
   toHex(): string {
@@ -533,22 +580,69 @@ export class Transaction {
     this.ins[index].script = scriptSig;
   }
 
-  private __byteLength(): number {
+  private __byteLength(_ALLOW_WITNESS: boolean): number {
+    const hasWitnesses = _ALLOW_WITNESS && this.hasWitnesses();
     return (
       9 +
       varuint.encodingLength(this.ins.length) +
       varuint.encodingLength(this.outs.length) +
       this.ins.reduce((sum, input) => {
-        return sum + 40 + varSliceSize(input.script);
+        return (
+          sum +
+          40 +
+          varSliceSize(input.script) +
+          (input.issuance
+            ? 64 +
+              input.issuance.assetamount.length +
+              input.issuance.tokenamount.length
+            : 0)
+        );
       }, 0) +
       this.outs.reduce((sum, output) => {
-        return sum + 40 + varSliceSize(output.script);
-      }, 0)
+        return (
+          sum +
+          CONFIDENTIAL_COMMITMENT * 2 +
+          (output.value ? CONFIDENTIAL_VALUE : CONFIDENTIAL_COMMITMENT) +
+          varSliceSize(output.script)
+        );
+      }, 0) +
+      (hasWitnesses
+        ? this.witnessIn.reduce((sum, witnessIn) => {
+            return (
+              sum +
+              varSliceSize(witnessIn.issuanceRangeProof) +
+              varSliceSize(witnessIn.inflationRangeProof) +
+              varuint.encodingLength(witnessIn.scriptWitness.length) +
+              witnessIn.scriptWitness.reduce((scriptSum, scriptWit) => {
+                return scriptSum + varSliceSize(scriptWit);
+              }, 0) +
+              varuint.encodingLength(witnessIn.peginWitness.length) +
+              witnessIn.peginWitness.reduce((peginSum, peginWit) => {
+                return peginSum + varSliceSize(peginWit);
+              }, 0)
+            );
+          }, 0)
+        : 0) +
+      (hasWitnesses
+        ? this.witnessOut.reduce((sum, witnessOut) => {
+            return (
+              sum +
+              varSliceSize(witnessOut.surjectionProof) +
+              varSliceSize(witnessOut.rangeProof)
+            );
+          }, 0)
+        : 0)
     );
   }
 
-  private __toBuffer(buffer?: Buffer, initialOffset?: number): Buffer {
-    if (!buffer) buffer = Buffer.allocUnsafe(this.__byteLength()) as Buffer;
+  private __toBuffer(
+    buffer?: Buffer,
+    initialOffset?: number,
+    _ALLOW_WITNESS?: boolean,
+    forceZeroFlag?: boolean,
+  ): Buffer {
+    if (!buffer)
+      buffer = Buffer.allocUnsafe(this.__byteLength(_ALLOW_WITNESS!)) as Buffer;
 
     let offset = initialOffset || 0;
 
@@ -568,10 +662,6 @@ export class Transaction {
       offset = buffer!.writeInt32LE(i, offset);
     }
 
-    function writeUInt64(i: number): void {
-      offset = bufferutils.writeUInt64LE(buffer!, i, offset);
-    }
-
     function writeVarInt(i: number): void {
       varuint.encode(i, buffer, offset);
       offset += varuint.encode.bytes;
@@ -582,42 +672,75 @@ export class Transaction {
       writeSlice(slice);
     }
 
-    function writeValue(slice: Buffer): void {
-      if (slice.length == 8){
-        writeUInt8(1);
-        let tempBuffer = bufferutils.writeUInt64LE()
-        write
-      }
+    function writeWitnessIn(witnessInputArray: WitnessInput[]): void {
+      for (const witnessInput of witnessInputArray)
+        writeWitnessInField(witnessInput);
+    }
+
+    function writeWitnessInField(witnessInput: WitnessInput): void {
+      writeVarSlice(witnessInput.issuanceRangeProof);
+      writeVarSlice(witnessInput.inflationRangeProof);
+
+      writeVarInt(witnessInput.scriptWitness.length);
+      for (const it of witnessInput.scriptWitness) writeVarSlice(it);
+
+      writeVarInt(witnessInput.peginWitness.length);
+      for (const it of witnessInput.peginWitness) writeVarSlice(it);
+    }
+
+    function writeWitnessOut(witnessOutputArray: WitnessOutput[]): void {
+      for (const it of witnessOutputArray) writeWitnessOutField(it);
+    }
+
+    function writeWitnessOutField(witnessOutput: WitnessOutput): void {
+      writeVarSlice(witnessOutput.surjectionProof);
+      writeVarSlice(witnessOutput.rangeProof);
     }
 
     writeInt32(this.version);
 
-    // No segwit support at the moment, flags are 00
-    writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
+    const hasWitnesses = _ALLOW_WITNESS && this.hasWitnesses();
+
+    if (
+      hasWitnesses &&
+      (forceZeroFlag === false || forceZeroFlag === undefined)
+    )
+      writeUInt8(Transaction.ADVANCED_TRANSACTION_FLAG);
+    else writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
 
     writeVarInt(this.ins.length);
 
     this.ins.forEach(txIn => {
       writeSlice(txIn.hash);
-      writeUInt32(txIn.index);
+      let prevIndex = txIn.index;
+      if (txIn.issuance) prevIndex |= OUTPOINT_ISSUANCE_FLAG;
+      writeUInt32(prevIndex);
       writeVarSlice(txIn.script);
       writeUInt32(txIn.sequence);
+
+      if (txIn.issuance) {
+        writeSlice(txIn.issuance.assetBlindingNonce);
+        writeSlice(txIn.issuance.assetEntropy);
+
+        writeSlice(txIn.issuance.assetamount);
+        writeSlice(txIn.issuance.tokenamount);
+      }
     });
 
     writeVarInt(this.outs.length);
     this.outs.forEach(txOut => {
       writeSlice(txOut.asset);
-      if (isOutput(txOut)) {
-        writeUInt64(txOut.value);
-      } else {
-        writeSlice(txOut.valueBuffer);
-      }
-      writeSlice(txOut.value);
+      writeSlice(txOut.nValue);
       writeSlice(txOut.nonce);
       writeVarSlice(txOut.script);
     });
 
     writeUInt32(this.locktime);
+
+    if (_ALLOW_WITNESS) {
+      if (this.witnessIn.length > 0) writeWitnessIn(this.witnessIn);
+      if (this.witnessOut.length > 0) writeWitnessOut(this.witnessOut);
+    }
 
     // avoid slicing unless necessary
     if (initialOffset !== undefined) return buffer.slice(initialOffset, offset);

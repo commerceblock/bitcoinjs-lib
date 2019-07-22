@@ -68,9 +68,9 @@ export class TransactionBuilder {
     transaction.outs.forEach(txOut => {
       txb.addOutput(
         (txOut as Output).asset,
-        (txOut as Output).value,
+        (txOut as Output).nValue,
         (txOut as Output).nonce,
-        txOut.script
+        txOut.script,
       );
     });
 
@@ -162,7 +162,10 @@ export class TransactionBuilder {
     } else if (txIsTransaction(txHash)) {
       const txOut = txHash.outs[vout];
       prevOutScript = txOut.script;
-      value = (txOut as Output).value;
+
+      const valStr = (txOut as Output).value;
+      if (valStr && valStr !== '')
+        value = parseInt(valStr.replace('.', ''), 10);
 
       txHash = txHash.getHash() as Buffer;
     }
@@ -176,9 +179,9 @@ export class TransactionBuilder {
 
   addOutput(
     asset: string | Buffer,
-    value: number,
+    nValue: Buffer,
     nonce: string | Buffer,
-    scriptPubKey: string | Buffer
+    scriptPubKey: string | Buffer,
   ): number {
     if (!this.__canModifyOutputs()) {
       throw new Error('No, this would invalidate signatures');
@@ -197,7 +200,7 @@ export class TransactionBuilder {
       nonce = Buffer.from(nonce, 'hex');
     }
 
-    return this.__TX.addOutput(asset, value, nonce, scriptPubKey);
+    return this.__TX.addOutput(asset, nValue, nonce, scriptPubKey);
   }
 
   build(): Transaction {
@@ -422,10 +425,13 @@ export class TransactionBuilder {
 
     // but all outputs do, and if we have any input value
     // we can immediately determine if the outputs are too small
-    const outgoing = this.__TX.outs.reduce(
-      (a, x) => a + (x as Output).value,
-      0,
-    );
+    const outgoing = this.__TX.outs.reduce((a, x) => {
+      const valStr = (x as Output).value;
+      return (
+        a +
+        (valStr && valStr !== '' ? parseInt(valStr.replace('.', ''), 10) : 0)
+      );
+    }, 0);
     const fee = incoming - outgoing;
     const feeRate = fee / bytes;
 

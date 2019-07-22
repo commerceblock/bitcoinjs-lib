@@ -15,7 +15,7 @@ export declare class TransactionBuilder {
     setLockTime(locktime: number): void;
     setVersion(version: number): void;
     addInput(txHash: Buffer | string | Transaction, vout: number, sequence?: number, prevOutScript?: Buffer): number;
-    addOutput(asset: string | Buffer, value: number, nonce: string | Buffer, scriptPubKey: string | Buffer): number;
+    addOutput(asset: string | Buffer, nValue: Buffer, nonce: string | Buffer, scriptPubKey: string | Buffer): number;
     build(): Transaction;
     buildIncomplete(): Transaction;
     sign(vin: number, keyPair: ECPairInterface, redeemScript?: Buffer, hashType?: number): void;
