@@ -42,7 +42,7 @@ class TransactionBuilder {
     });
     // Copy inputs
     transaction.ins.forEach(txIn => {
-      txb.__addInputUnsafe(txIn.hash, txIn.index, {
+      txb.__addInputUnsafe(txIn.hash, txIn.index.readUInt32LE(0), {
         sequence: txIn.sequence,
         script: txIn.script,
       });
@@ -194,9 +194,11 @@ class TransactionBuilder {
       input.prevOutScript = options.prevOutScript;
       input.prevOutType = prevOutType || classify.output(options.prevOutScript);
     }
+    const voutBuffer = Buffer.allocUnsafe(4);
+    voutBuffer.writeUInt32LE(vout, 0);
     const vin = this.__TX.addInput(
       txHash,
-      vout,
+      voutBuffer,
       options.sequence,
       options.scriptSig,
     );

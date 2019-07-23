@@ -36,9 +36,9 @@ const ONE = Buffer.from(
   'hex',
 );
 const WITNESS_SCALE_FACTOR = 4;
-const MINUS_1 = 4294967295;
-const OUTPOINT_ISSUANCE_FLAG = 1 << 31;
-const OUTPOINT_INDEX_MASK = 0x3fffffff;
+const MINUS_1 = Buffer.from('ffffffff', 'hex');
+const OUTPOINT_ISSUANCE_DEC = 8;
+const OUTPOINT_PEGIN_DEC = 4;
 const CONFIDENTIAL_COMMITMENT = 33; // default size of confidential commitments (i.e. asset, value, nonce)
 const CONFIDENTIAL_VALUE = 9; // explicit size of confidential values
 const VALUE_UINT64_MAX = Buffer.from('ffffffffffffffff', 'hex');
@@ -186,15 +186,29 @@ class Transaction {
     const vinLen = readVarInt();
     for (let i = 0; i < vinLen; ++i) {
       const inHash = readSlice(32);
-      let inIndex = readUInt32();
+      let inIndex = readSlice(4);
       const inScript = readVarSlice();
       const inSequence = readUInt32();
+      let stringIndex = inIndex.toString('hex');
       let inIssuance;
-      if (inIndex !== MINUS_1) {
-        if (inIndex & OUTPOINT_ISSUANCE_FLAG) {
+      if (Buffer.compare(inIndex, MINUS_1) !== 0) {
+        let flagNumber = parseInt(stringIndex[6], 16);
+        if (flagNumber >= OUTPOINT_ISSUANCE_DEC) {
           inIssuance = readIssuance();
         }
-        inIndex &= OUTPOINT_INDEX_MASK;
+        flagNumber =
+          flagNumber >= OUTPOINT_ISSUANCE_DEC
+            ? flagNumber - OUTPOINT_ISSUANCE_DEC
+            : flagNumber;
+        flagNumber =
+          flagNumber >= OUTPOINT_PEGIN_DEC
+            ? flagNumber - OUTPOINT_PEGIN_DEC
+            : flagNumber;
+        stringIndex =
+          stringIndex.slice(0, 6) +
+          flagNumber.toString(16) +
+          stringIndex.slice(7);
+        inIndex = Buffer.from(stringIndex, 'hex');
       }
       tx.ins.push({
         hash: inHash,
@@ -206,21 +220,24 @@ class Transaction {
     }
     const voutLen = readVarInt();
     for (let i = 0; i < voutLen; ++i) {
+      const assetBuffer = readConfidentialAsset();
       const outValueBuffer = readConfidentialValue();
-      // TODO we are not transforming amount into value and are not
-      // handling confidential values
+      // TODO We are not handling confidential values
       let outValue;
       let outAmountCommitment;
-      if (outValueBuffer.readUIntBE(0, 1) === 1 && outValueBuffer.length === 9)
+      if (
+        outValueBuffer.readUIntBE(0, 1) === 1 &&
+        outValueBuffer.length === 9
+      ) {
         outValue = valueFromAmount(
           bufferutils.readUInt64LE(
             bufferutils_1.reverseBuffer(outValueBuffer.slice(1, 9)),
             0,
           ),
         );
-      else outAmountCommitment = outValueBuffer.toString('hex');
+      } else outAmountCommitment = outValueBuffer.toString('hex');
       tx.outs.push({
-        asset: readConfidentialAsset(),
+        asset: assetBuffer,
         nValue: outValueBuffer,
         nonce: readConfidentialNonce(),
         script: readVarSlice(),
@@ -261,7 +278,7 @@ class Transaction {
     typeforce(
       types.tuple(
         types.Hash256bit,
-        types.UInt32,
+        types.Buffer,
         types.maybe(types.UInt32),
         types.maybe(types.Buffer),
         types.maybe(types.Object),
@@ -454,8 +471,9 @@ class Transaction {
       this.outs.reduce((sum, output) => {
         return (
           sum +
-          CONFIDENTIAL_COMMITMENT * 2 +
-          (output.value ? CONFIDENTIAL_VALUE : CONFIDENTIAL_COMMITMENT) +
+          output.asset.length +
+          output.nValue.length +
+          output.nonce.length +
           varSliceSize(output.script)
         );
       }, 0) +
@@ -541,8 +559,16 @@ class Transaction {
     this.ins.forEach(txIn => {
       writeSlice(txIn.hash);
       let prevIndex = txIn.index;
-      if (txIn.issuance) prevIndex |= OUTPOINT_ISSUANCE_FLAG;
-      writeUInt32(prevIndex);
+      if (txIn.issuance) {
+        let stringIndex = prevIndex.toString('hex');
+        const flagNumber = parseInt(stringIndex[6], 16) + OUTPOINT_ISSUANCE_DEC;
+        stringIndex =
+          stringIndex.slice(0, 6) +
+          flagNumber.toString(16) +
+          stringIndex.slice(7);
+        prevIndex = Buffer.from(stringIndex, 'hex');
+      }
+      writeSlice(prevIndex);
       writeVarSlice(txIn.script);
       writeUInt32(txIn.sequence);
       if (txIn.issuance) {

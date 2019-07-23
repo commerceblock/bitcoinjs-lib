@@ -34,7 +34,7 @@ export interface Issuance {
 declare type OpenOutput = Output | BlankOutput;
 export interface Input {
     hash: Buffer;
-    index: number;
+    index: Buffer;
     script: Buffer;
     sequence: number;
     issuance?: Issuance;
@@ -57,7 +57,7 @@ export declare class Transaction {
     witnessIn: WitnessInput[];
     witnessOut: WitnessOutput[];
     isCoinbase(): boolean;
-    addInput(hash: Buffer, index: number, sequence?: number, scriptSig?: Buffer, inIssuance?: Issuance): number;
+    addInput(hash: Buffer, index: Buffer, sequence?: number, scriptSig?: Buffer, inIssuance?: Issuance): number;
     addOutput(_asset: Buffer, _nValue: Buffer, _nonce: Buffer, scriptPubKey: Buffer): number;
     hasWitnesses(): boolean;
     weight(): number;

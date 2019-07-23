@@ -24,10 +24,25 @@ describe('Block', () => {
         assert.strictEqual(block.version, f.version)
         assert.strictEqual(block.prevHash.toString('hex'), f.prevHash)
         assert.strictEqual(block.merkleRoot.toString('hex'), f.merkleRoot)
+        assert.strictEqual(block.contractHash.toString('hex'), f.contractHash)
+        assert.strictEqual(block.attestationHash.toString('hex'), f.attestationHash)
+        assert.strictEqual(block.mappingHash.toString('hex'), f.mappingHash)
         assert.strictEqual(block.timestamp, f.timestamp)
-        assert.strictEqual(block.bits, f.bits)
-        assert.strictEqual(block.nonce, f.nonce)
-        assert.strictEqual(!block.transactions, f.hex.length === !f.challenge ? f.hex.slice(0, 346) : f.hex.slice(0, 346 + f.challenge.length + 2))
+        assert.strictEqual(block.blockHeight, f.blockHeight)
+        assert.strictEqual(block.challenge == undefined, f.challenge == undefined)
+        if (block.challenge != undefined)
+          assert.strictEqual(block.challenge.toString('hex'), f.challenge);
+        assert.strictEqual(block.proof == undefined, f.proof == undefined)
+        if (block.proof != undefined)
+          assert.strictEqual(block.proof.toString('hex'), f.proof);
+        let blockLen = 346
+        if ( f.challenge ) {
+          blockLen += f.challenge.length + 2
+          if ( f.proof ) {
+            blockLen += f.proof.length
+          }
+        }
+        assert.strictEqual(!block.transactions, (f.hex.length === blockLen))
       })
     })
 
@@ -49,7 +64,12 @@ describe('Block', () => {
       })
 
       it('exports ' + f.description, () => {
-        assert.strictEqual(block.toHex(true), !f.challenge ? f.hex.slice(0, 346) : f.hex.slice(0, 346 + f.challenge.length + 2))
+        // Excluded the proof length for the headers only as the block hash is calculated using 346 bytes + challenge
+        let blockLen = 346
+        if ( f.challenge ) {
+          blockLen += f.challenge.length
+        }
+        assert.strictEqual(block.toHex(true), f.hex.slice(0, blockLen))
         assert.strictEqual(block.toHex(), f.hex)
       })
     })

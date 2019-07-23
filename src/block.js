@@ -101,10 +101,10 @@ class Block {
   }
   byteLength(headersOnly) {
     let bLength = 173;
-    if (this.challenge) bLength = bLength + this.challenge.length + 1;
+    if (this.challenge) bLength = bLength + this.challenge.length;
     if (headersOnly) return bLength;
     if (this.proof) {
-      bLength = bLength + this.proof.length;
+      bLength = bLength + 1 + this.proof.length;
     }
     if (!this.transactions) return bLength;
     return (
