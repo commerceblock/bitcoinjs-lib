@@ -124,7 +124,10 @@ class TransactionBuilder {
     const numToBuffer = Buffer.alloc(8);
     if (typeof nValue === 'number') {
       numToBuffer.writeUInt32LE(nValue, 0);
-      nValue = Buffer.concat([Buffer.from('01', 'hex'), numToBuffer]);
+      nValue = Buffer.concat([
+        Buffer.from('01', 'hex'),
+        bufferutils_1.reverseBuffer(numToBuffer),
+      ]);
     }
     return this.__TX.addOutput(asset, nValue, nonce, scriptPubKey);
   }
