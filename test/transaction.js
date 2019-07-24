@@ -4,6 +4,8 @@ const bscript = require('../src/script')
 const fixtures = require('./fixtures/transaction')
 const Transaction = require('..').Transaction
 
+const emptyNonce = Buffer.from('00', 'hex');
+
 describe('Transaction', () => {
   function fromRaw (raw) {
     const tx = new Transaction()
@@ -32,7 +34,18 @@ describe('Transaction', () => {
         script = bscript.fromASM(txOut.script)
       }
 
-      tx.addOutput(script, txOut.value, Buffer.from(txOut.asset, 'hex'))
+      let value
+      const numToBuffer = Buffer.alloc(8);
+
+      if (txOut.value) {
+        numToBuffer.writeUInt32LE(txOut.value, 0);
+        value = Buffer.concat([
+          Buffer.from('01', 'hex'),
+          numToBuffer,
+        ]);
+      }
+
+      tx.addOutput(Buffer.from(txOut.asset, 'hex'), value, Buffer.from(txOut.nonce, 'hex'), script)
     })
 
     return tx
@@ -99,7 +112,7 @@ describe('Transaction', () => {
   describe('weight/virtualSize', () => {
     it('computes virtual size', () => {
       fixtures.valid.forEach(f => {
-        const transaction = Transaction.fromHex(f.whex ? f.whex : f.hex)
+        const transaction = Transaction.fromHex(f.hex)
 
         assert.strictEqual(transaction.virtualSize(), f.virtualSize)
       })
@@ -107,7 +120,7 @@ describe('Transaction', () => {
 
     it('computes weight', () => {
       fixtures.valid.forEach(f => {
-        const transaction = Transaction.fromHex(f.whex ? f.whex : f.hex)
+        const transaction = Transaction.fromHex(f.hex)
 
         assert.strictEqual(transaction.weight(), f.weight)
       })
@@ -149,8 +162,8 @@ describe('Transaction', () => {
   describe('addOutput', () => {
     it('returns an index', () => {
       const tx = new Transaction()
-      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0, Buffer.from('e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex')), 0)
-      assert.strictEqual(tx.addOutput(Buffer.alloc(0), 0, Buffer.from('e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex')), 1)
+      assert.strictEqual(tx.addOutput(Buffer.from('01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex'), Buffer.alloc(0), Buffer.alloc(0), Buffer.alloc(0)), 0)
+      assert.strictEqual(tx.addOutput(Buffer.from('01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex'), Buffer.alloc(0), Buffer.alloc(0), Buffer.alloc(0)), 1)
     })
   })
 
@@ -177,7 +190,7 @@ describe('Transaction', () => {
   describe('getHash/getId', () => {
     function verify (f) {
       it('should return the id for ' + f.id + '(' + f.description + ')', () => {
-        const tx = Transaction.fromHex(f.whex || f.hex)
+        const tx = Transaction.fromHex(f.hex)
 
         assert.strictEqual(tx.getHash().toString('hex'), f.hash)
         assert.strictEqual(tx.getId(), f.id)
@@ -205,7 +218,7 @@ describe('Transaction', () => {
 
       const tx = new Transaction()
       tx.addInput(Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'), 0)
-      tx.addOutput(randScript, 5000000000, Buffer.from('e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex'))
+      tx.addOutput(Buffer.from('01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex'), Buffer.from('010000000050000000', 'hex'), emptyNonce, randScript)
 
       const original = tx.__toBuffer
       tx.__toBuffer = (a, b, c) => {

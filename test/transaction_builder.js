@@ -11,7 +11,8 @@ const NETWORKS = require('../src/networks')
 
 const fixtures = require('./fixtures/transaction_builder')
 
-const assethex = 'e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d'
+const assethex = '01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d'
+const emptyNonce = Buffer.from('00', 'hex');
 
 function constructSign (f, txb) {
   const network = NETWORKS[f.network]
@@ -74,9 +75,9 @@ function construct (f, dontSign) {
 
   f.outputs.forEach(output => {
     if (output.address) {
-      txb.addOutput(output.address, output.value, output.asset)
+      txb.addOutput(output.asset, output.nValue, output.nonce, output.address)
     } else {
-      txb.addOutput(bscript.fromASM(output.script), output.value, output.asset)
+      txb.addOutput(output.asset, output.nValue, output.nonce, bscript.fromASM(output.script))
     }
   })
 
@@ -120,7 +121,7 @@ describe('TransactionBuilder', () => {
         })
 
         f.outputs.forEach(output => {
-          tx.addOutput(bscript.fromASM(output.script), output.value, Buffer.from(output.asset, 'hex'))
+          tx.addOutput(Buffer.from(output.asset, 'hex'), output.nValue, output.nonce, bscript.fromASM(output.script))
         })
 
         const txb = TransactionBuilder.fromTransaction(tx)
@@ -208,8 +209,8 @@ describe('TransactionBuilder', () => {
 
     it('accepts a prevTx, index [and sequence number]', () => {
       const prevTx = new Transaction()
-      prevTx.addOutput(scripts[0], 0, Buffer.from(assethex, 'hex'))
-      prevTx.addOutput(scripts[1], 1, Buffer.from(assethex, 'hex'))
+      prevTx.addOutput(Buffer.from(assethex, 'hex'), Buffer.from('010000000000000000', 'hex'), emptyNonce, scripts[0])
+      prevTx.addOutput(Buffer.from(assethex, 'hex'), Buffer.from('010100000000000000', 'hex'), emptyNonce, scripts[1])
 
       const vin = txb.addInput(prevTx, 1, 54)
       assert.strictEqual(vin, 0)
@@ -228,7 +229,7 @@ describe('TransactionBuilder', () => {
 
     it('throws if SIGHASH_ALL has been used to sign any existing scriptSigs', () => {
       txb.addInput(txHash, 0)
-      txb.addOutput(scripts[0], 1000, assethex)
+      txb.addOutput(assethex, 1000, emptyNonce, scripts[0])
       txb.sign(0, keyPair)
 
       assert.throws(() => {
@@ -245,7 +246,7 @@ describe('TransactionBuilder', () => {
 
     it('accepts an address string and value', () => {
       const { address } = payments.p2pkh({ pubkey: keyPair.publicKey })
-      const vout = txb.addOutput(address, 1000, assethex)
+      const vout = txb.addOutput(assethex, 1000, emptyNonce, address)
       assert.strictEqual(vout, 0)
 
       const txout = txb.__TX.outs[0]
@@ -254,7 +255,7 @@ describe('TransactionBuilder', () => {
     })
 
     it('accepts a ScriptPubKey and value', () => {
-      const vout = txb.addOutput(scripts[0], 1000, assethex)
+      const vout = txb.addOutput(assethex, 1000, emptyNonce, scripts[0])
       assert.strictEqual(vout, 0)
 
       const txout = txb.__TX.outs[0]
@@ -264,45 +265,45 @@ describe('TransactionBuilder', () => {
 
     it('throws if address is of the wrong network', () => {
       assert.throws(() => {
-        txb.addOutput('2NGHjvjw83pcVFgMcA7QvSMh2c246rxLVz9', 1000, assethex)
+        txb.addOutput(assethex, 1000, emptyNonce, '2NGHjvjw83pcVFgMcA7QvSMh2c246rxLVz9')
       }, /2NGHjvjw83pcVFgMcA7QvSMh2c246rxLVz9 has no matching Script/)
     })
 
     it('add second output after signed first input with SIGHASH_NONE', () => {
       txb.addInput(txHash, 0)
-      txb.addOutput(scripts[0], 2000, assethex)
+      txb.addOutput(assethex, 2000, emptyNonce, scripts[0])
       txb.sign(0, keyPair, undefined, Transaction.SIGHASH_NONE)
-      assert.strictEqual(txb.addOutput(scripts[1], 9000, assethex), 1)
+      assert.strictEqual(txb.addOutput(assethex, 9000, emptyNonce, scripts[1]), 1)
     })
 
     it('add first output after signed first input with SIGHASH_NONE', () => {
       txb.addInput(txHash, 0)
       txb.sign(0, keyPair, undefined, Transaction.SIGHASH_NONE)
-      assert.strictEqual(txb.addOutput(scripts[0], 2000, assethex), 0)
+      assert.strictEqual(txb.addOutput(assethex, 2000, emptyNonce, scripts[0]), 0)
     })
 
     it('add second output after signed first input with SIGHASH_SINGLE', () => {
       txb.addInput(txHash, 0)
-      txb.addOutput(scripts[0], 2000, assethex)
+      txb.addOutput(assethex, 2000, emptyNonce, scripts[0])
       txb.sign(0, keyPair, undefined, Transaction.SIGHASH_SINGLE)
-      assert.strictEqual(txb.addOutput(scripts[1], 9000, assethex), 1)
+      assert.strictEqual(txb.addOutput(assethex, 9000, emptyNonce, scripts[1]), 1)
     })
 
     it('add first output after signed first input with SIGHASH_SINGLE', () => {
       txb.addInput(txHash, 0)
       txb.sign(0, keyPair, undefined, Transaction.SIGHASH_SINGLE)
       assert.throws(() => {
-        txb.addOutput(scripts[0], 2000, assethex)
+        txb.addOutput(assethex, 2000, emptyNonce, scripts[0])
       }, /No, this would invalidate signatures/)
     })
 
     it('throws if SIGHASH_ALL has been used to sign any existing scriptSigs', () => {
       txb.addInput(txHash, 0)
-      txb.addOutput(scripts[0], 2000, assethex)
+      txb.addOutput(assethex, 2000, emptyNonce, scripts[0])
       txb.sign(0, keyPair)
 
       assert.throws(() => {
-        txb.addOutput(scripts[1], 9000, assethex)
+        txb.addOutput(assethex, 9000, emptyNonce, scripts[1])
       }, /No, this would invalidate signatures/)
     })
   })
@@ -311,7 +312,7 @@ describe('TransactionBuilder', () => {
     it('throws if if there exist any scriptSigs', () => {
       const txb = new TransactionBuilder()
       txb.addInput(txHash, 0)
-      txb.addOutput(scripts[0], 100, assethex)
+      txb.addOutput(assethex, 100, emptyNonce, scripts[0])
       txb.sign(0, keyPair)
 
       assert.throws(() => {
@@ -330,7 +331,7 @@ describe('TransactionBuilder', () => {
       const txb = new TransactionBuilder()
       txb.setVersion(1)
       txb.addInput('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 1)
-      txb.addOutput('1111111111111111111114oLvT2', 100000, assethex)
+      txb.addOutput(assethex, 100000, emptyNonce, '1111111111111111111114oLvT2')
       txb.sign(0, keyPair)
       assert.strictEqual(txb.build().toHex(), '010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff010000006a47304402205f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f02205f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f0121031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078fffffffff01a0860100000000001976a914000000000000000000000000000000000000000088ace44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d00000000')
     })
@@ -339,7 +340,7 @@ describe('TransactionBuilder', () => {
       let txb = new TransactionBuilder()
       txb.setVersion(1)
       txb.addInput('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 1)
-      txb.addOutput('1111111111111111111114oLvT2', 100000, assethex)
+      txb.addOutput(assethex, 100000, emptyNonce, '1111111111111111111114oLvT2')
       txb.sign(0, keyPair)
       // high R
       assert.strictEqual(txb.build().toHex(), '010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff010000006a473044022067ac145ee9cbf7c512aea4b5a35957965a61fbe376451a0eee06ce71ea4eaf600220503e6cca17d38fd8028543c65136c8d1f75307e4fd897e3f3557c4cd4731d5ad01210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff01a0860100000000001976a914000000000000000000000000000000000000000088ace44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d00000000')
@@ -347,7 +348,7 @@ describe('TransactionBuilder', () => {
       txb = new TransactionBuilder()
       txb.setVersion(1)
       txb.addInput('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 1)
-      txb.addOutput('1111111111111111111114oLvT2', 100000, assethex)
+      txb.addOutput(assethex, 100000, emptyNonce, '1111111111111111111114oLvT2')
       txb.setLowR()
       txb.sign(0, keyPair)
       // low R
@@ -447,7 +448,7 @@ describe('TransactionBuilder', () => {
       const randomTx = Transaction.fromHex(randomTxData)
       let tx = new TransactionBuilder()
       tx.addInput(randomTx, 0)
-      tx.addOutput(randomAddress, 1000, Buffer.from(assethex, 'hex'))
+      tx.addOutput(Buffer.from(assethex, 'hex'), 1000, emptyNonce, randomAddress)
       tx = tx.buildIncomplete()
       assert(tx)
     })
@@ -458,7 +459,7 @@ describe('TransactionBuilder', () => {
 
       const txb = new TransactionBuilder(NETWORKS.testnet)
       txb.addInput(inpTx, 0)
-      txb.addOutput('2NAkqp5xffoomp5RLBcakuGpZ12GU4twdz4', 1e8, assethex) // arbitrary output
+      txb.addOutput(assethex, 1e8, emptyNonce, '2NAkqp5xffoomp5RLBcakuGpZ12GU4twdz4') // arbitrary output
 
       txb.buildIncomplete()
     })
@@ -512,7 +513,7 @@ describe('TransactionBuilder', () => {
 
       const tx = new Transaction()
       tx.addInput(Buffer.from('cff58855426469d0ef16442ee9c644c4fb13832467bcbc3173168a7916f07149', 'hex'), 0, undefined, redeemScripSig)
-      tx.addOutput(Buffer.from('76a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac', 'hex'), 1000, Buffer.from(assethex, 'hex'))
+      tx.addOutput(Buffer.from(assethex, 'hex'), 1000, emptyNonce, Buffer.from('76a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac', 'hex'))
 
       // now import the Transaction
       const txb = TransactionBuilder.fromTransaction(tx, NETWORKS.testnet)
@@ -534,14 +535,14 @@ describe('TransactionBuilder', () => {
       const keyPair = ECPair.fromWIF('L1uyy5qTuGrVXrmrsvHWHgVzW9kKdrp27wBC7Vs6nZDTF2BRUVwy')
 
       // sign, as expected
-      txb.addOutput('1Gokm82v6DmtwKEB8AiVhm82hyFSsEvBDK', 15000, assethex)
+      txb.addOutput(assethex, 15000, emptyNonce, '1Gokm82v6DmtwKEB8AiVhm82hyFSsEvBDK')
       txb.sign(0, keyPair)
       const txId = txb.build().getId()
       assert.strictEqual(txId, 'bcd4e60597fe9a6fd730cbc5762e29f549e1c6d48199bf79fe8016df90016c9e')
 
       // and, repeat
       txb = TransactionBuilder.fromTransaction(Transaction.fromHex(incomplete))
-      txb.addOutput('1Gokm82v6DmtwKEB8AiVhm82hyFSsEvBDK', 15000, assethex)
+      txb.addOutput(assethex, 15000, emptyNonce, '1Gokm82v6DmtwKEB8AiVhm82hyFSsEvBDK')
       txb.sign(0, keyPair)
       const txId2 = txb.build().getId()
       assert.strictEqual(txId, txId2)

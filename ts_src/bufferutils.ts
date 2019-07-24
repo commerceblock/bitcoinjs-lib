@@ -10,9 +10,9 @@ function verifuint(value: number, max: number): void {
 }
 
 export function readUInt64LE(buffer: Buffer, offset: number): number {
-  const a = buffer.readUInt32LE(offset);
-  let b = buffer.readUInt32LE(offset + 4);
-  b *= 0x100000000;
+  let a = buffer.readUInt32LE(offset);
+  const b = buffer.readUInt32LE(offset + 4);
+  a *= 0x100000000;
 
   verifuint(b + a, 0x001fffffffffffff);
   return b + a;

@@ -194,7 +194,7 @@ export class TransactionBuilder {
 
   addOutput(
     asset: string | Buffer,
-    nValue: Buffer,
+    nValue: number | Buffer,
     nonce: string | Buffer,
     scriptPubKey: string | Buffer,
   ): number {
@@ -213,6 +213,13 @@ export class TransactionBuilder {
 
     if (typeof nonce === 'string') {
       nonce = Buffer.from(nonce, 'hex');
+    }
+
+    const numToBuffer: Buffer = Buffer.alloc(8);
+
+    if (typeof nValue === 'number') {
+      numToBuffer.writeUInt32LE(nValue, 0);
+      nValue = Buffer.concat([Buffer.from('01', 'hex'), numToBuffer]);
     }
 
     return this.__TX.addOutput(asset, nValue, nonce, scriptPubKey);

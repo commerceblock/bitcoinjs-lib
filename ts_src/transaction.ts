@@ -303,11 +303,8 @@ export class Transaction {
         outValueBuffer.readUIntLE(0, 1) === 1 &&
         outValueBuffer.length === 9
       ) {
-        const reverseValueBuffer: Buffer = Buffer.allocUnsafe(8);
-        outValueBuffer.slice(1, 9).copy(reverseValueBuffer, 0);
-        reverseBuffer(reverseValueBuffer);
         outValue = valueFromAmount(
-          bufferutils.readUInt64LE(reverseValueBuffer, 0),
+          bufferutils.readUInt64LE(outValueBuffer.slice(1, 9), 0),
         );
       } else outAmountCommitment = outValueBuffer.toString('hex');
 
@@ -377,7 +374,7 @@ export class Transaction {
     typeforce(
       types.tuple(
         types.Hash256bit,
-        types.Buffer,
+        types.UInt32,
         types.maybe(types.UInt32),
         types.maybe(types.Buffer),
         types.maybe(types.Boolean),
@@ -410,7 +407,7 @@ export class Transaction {
     scriptPubKey: Buffer,
   ): number {
     typeforce(
-      types.tuple(types.Buffer, types.Satoshi, types.Buffer, types.Buffer),
+      types.tuple(types.Buffer, types.Buffer, types.Buffer, types.Buffer),
       arguments,
     );
 
@@ -418,11 +415,8 @@ export class Transaction {
     let outAmountCommitment: string | undefined;
 
     if (_nValue.readUIntLE(0, 1) === 1 && _nValue.length === 9) {
-      const reverseValueBuffer: Buffer = Buffer.allocUnsafe(8);
-      _nValue.slice(1, 9).copy(reverseValueBuffer, 0);
-      reverseBuffer(reverseValueBuffer);
       outValue = valueFromAmount(
-        bufferutils.readUInt64LE(reverseValueBuffer, 0),
+        bufferutils.readUInt64LE(_nValue.slice(1, 9), 0),
       );
     } else outAmountCommitment = _nValue.toString('hex');
 
