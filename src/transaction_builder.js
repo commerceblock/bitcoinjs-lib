@@ -42,9 +42,11 @@ class TransactionBuilder {
     });
     // Copy inputs
     transaction.ins.forEach(txIn => {
-      txb.__addInputUnsafe(txIn.hash, txIn.index.readUInt32LE(0), {
+      txb.__addInputUnsafe(txIn.hash, txIn.index, {
         sequence: txIn.sequence,
         script: txIn.script,
+        isPegin: txIn.isPegin,
+        issuance: txIn.issuance,
       });
     });
     // fix some things not possible through the public API
@@ -79,7 +81,7 @@ class TransactionBuilder {
     // XXX: this might eventually become more complex depending on what the versions represent
     this.__TX.version = version;
   }
-  addInput(txHash, vout, sequence, prevOutScript) {
+  addInput(txHash, vout, sequence, prevOutScript, inIsPegin, inIssuance) {
     if (!this.__canModifyInputs()) {
       throw new Error('No, this would invalidate signatures');
     }
@@ -101,6 +103,8 @@ class TransactionBuilder {
       sequence,
       prevOutScript,
       value,
+      isPegin: inIsPegin,
+      issuance: inIssuance,
     });
   }
   addOutput(asset, nValue, nonce, scriptPubKey) {
@@ -194,13 +198,13 @@ class TransactionBuilder {
       input.prevOutScript = options.prevOutScript;
       input.prevOutType = prevOutType || classify.output(options.prevOutScript);
     }
-    const voutBuffer = Buffer.allocUnsafe(4);
-    voutBuffer.writeUInt32LE(vout, 0);
     const vin = this.__TX.addInput(
       txHash,
-      voutBuffer,
+      vout,
       options.sequence,
       options.scriptSig,
+      options.isPegin,
+      options.issuance,
     );
     this.__INPUTS[vin] = input;
     this.__PREV_TX_SET[prevTxOut] = true;

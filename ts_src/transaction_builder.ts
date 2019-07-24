@@ -35,7 +35,16 @@ interface TxbInput {
   script?: TxbScript;
   sequence?: number;
   scriptSig?: TxbScript;
+  isPegin?: boolean;
+  issuance?: Issuance;
   maxSignatures?: number;
+}
+
+export interface Issuance {
+  assetBlindingNonce: Buffer;
+  assetEntropy: Buffer;
+  assetamount: Buffer;
+  tokenamount: Buffer;
 }
 
 interface TxbOutput {
@@ -76,9 +85,11 @@ export class TransactionBuilder {
 
     // Copy inputs
     transaction.ins.forEach(txIn => {
-      txb.__addInputUnsafe(txIn.hash, txIn.index.readUInt32LE(0), {
+      txb.__addInputUnsafe(txIn.hash, txIn.index, {
         sequence: txIn.sequence,
         script: txIn.script,
+        isPegin: txIn.isPegin,
+        issuance: txIn.issuance,
       });
     });
 
@@ -146,6 +157,8 @@ export class TransactionBuilder {
     vout: number,
     sequence?: number,
     prevOutScript?: Buffer,
+    inIsPegin?: boolean,
+    inIssuance?: Issuance,
   ): number {
     if (!this.__canModifyInputs()) {
       throw new Error('No, this would invalidate signatures');
@@ -174,6 +187,8 @@ export class TransactionBuilder {
       sequence,
       prevOutScript,
       value,
+      isPegin: inIsPegin,
+      issuance: inIssuance,
     });
   }
 
@@ -313,14 +328,13 @@ export class TransactionBuilder {
       input.prevOutType = prevOutType || classify.output(options.prevOutScript);
     }
 
-    const voutBuffer: Buffer = Buffer.allocUnsafe(4);
-    voutBuffer!.writeUInt32LE(vout, 0);
-
     const vin = this.__TX.addInput(
       txHash,
-      voutBuffer,
+      vout,
       options.sequence,
       options.scriptSig,
+      options.isPegin,
+      options.issuance,
     );
     this.__INPUTS[vin] = input;
     this.__PREV_TX_SET[prevTxOut] = true;

@@ -2,6 +2,12 @@
 import { ECPairInterface } from './ecpair';
 import { Network } from './networks';
 import { Transaction } from './transaction';
+export interface Issuance {
+    assetBlindingNonce: Buffer;
+    assetEntropy: Buffer;
+    assetamount: Buffer;
+    tokenamount: Buffer;
+}
 export declare class TransactionBuilder {
     network: Network;
     maximumFeeRate: number;
@@ -14,7 +20,7 @@ export declare class TransactionBuilder {
     setLowR(setting?: boolean): boolean;
     setLockTime(locktime: number): void;
     setVersion(version: number): void;
-    addInput(txHash: Buffer | string | Transaction, vout: number, sequence?: number, prevOutScript?: Buffer): number;
+    addInput(txHash: Buffer | string | Transaction, vout: number, sequence?: number, prevOutScript?: Buffer, inIsPegin?: boolean, inIssuance?: Issuance): number;
     addOutput(asset: string | Buffer, nValue: Buffer, nonce: string | Buffer, scriptPubKey: string | Buffer): number;
     build(): Transaction;
     buildIncomplete(): Transaction;

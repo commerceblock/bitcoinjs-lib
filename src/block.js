@@ -100,12 +100,15 @@ class Block {
     return rootHash;
   }
   byteLength(headersOnly) {
-    let bLength = 173;
-    if (this.challenge) bLength = bLength + this.challenge.length;
+    let bLength = 172;
+    if (this.challenge)
+      bLength +=
+        varuint.encodingLength(this.challenge.length) + this.challenge.length;
+    else bLength += 1;
     if (headersOnly) return bLength;
     if (this.proof) {
-      bLength = bLength + 1 + this.proof.length;
-    }
+      bLength += varuint.encodingLength(this.proof.length) + this.proof.length;
+    } else bLength += 1;
     if (!this.transactions) return bLength;
     return (
       bLength +

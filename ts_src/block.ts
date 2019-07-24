@@ -118,15 +118,18 @@ export class Block {
   transactions?: Transaction[] = undefined;
 
   byteLength(headersOnly: boolean): number {
-    let bLength = 173;
+    let bLength = 172;
 
-    if (this.challenge) bLength = bLength + this.challenge.length;
+    if (this.challenge)
+      bLength +=
+        varuint.encodingLength(this.challenge.length) + this.challenge.length;
+    else bLength += 1;
 
     if (headersOnly) return bLength;
 
     if (this.proof) {
-      bLength = bLength + 1 + this.proof.length;
-    }
+      bLength += varuint.encodingLength(this.proof.length) + this.proof.length;
+    } else bLength += 1;
 
     if (!this.transactions) return bLength;
 

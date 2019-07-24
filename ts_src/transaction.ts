@@ -40,10 +40,10 @@ const ONE: Buffer = Buffer.from(
   'hex',
 );
 const WITNESS_SCALE_FACTOR = 4;
-const MINUS_1: Buffer = Buffer.from('ffffffff', 'hex');
-const OUTPOINT_ISSUANCE_DEC = 8;
-const OUTPOINT_PEGIN_DEC = 4;
-const OUTPOINT_ISSUANCE_FLAG = (1<<31)>>>0;
+const OUTPOINT_ISSUANCE_FLAG = (1 << 31) >>> 0;
+const OUTPOINT_PEGIN_FLAG = (1 << 30) >>> 0;
+const OUTPOINT_INDEX_MASK = 0x3fffffff;
+const MINUS_1 = 4294967295;
 const CONFIDENTIAL_COMMITMENT = 33; // default size of confidential commitments (i.e. asset, value, nonce)
 const CONFIDENTIAL_VALUE = 9; // explicit size of confidential values
 const VALUE_UINT64_MAX: Buffer = Buffer.from('ffffffffffffffff', 'hex');
@@ -95,9 +95,10 @@ type OpenOutput = Output | BlankOutput;
 
 export interface Input {
   hash: Buffer;
-  index: Buffer;
+  index: number;
   script: Buffer;
   sequence: number;
+  isPegin: boolean;
   issuance?: Issuance;
 }
 
@@ -263,30 +264,20 @@ export class Transaction {
     const vinLen = readVarInt();
     for (let i = 0; i < vinLen; ++i) {
       const inHash = readSlice(32);
-      let inIndex = readSlice(4);
+      let inIndex = readUInt32();
       const inScript = readVarSlice();
       const inSequence = readUInt32();
-      let stringIndex = inIndex.toString('hex');
+      let inIsPegin = false;
 
       let inIssuance: Issuance | undefined;
-      if (Buffer.compare(inIndex, MINUS_1) !== 0) {
-        let flagNumber = parseInt(stringIndex[6], 16);
-        if (flagNumber >= OUTPOINT_ISSUANCE_DEC) {
+      if (inIndex !== MINUS_1) {
+        if (inIndex & OUTPOINT_ISSUANCE_FLAG) {
           inIssuance = readIssuance();
         }
-        flagNumber =
-          flagNumber >= OUTPOINT_ISSUANCE_DEC
-            ? flagNumber - OUTPOINT_ISSUANCE_DEC
-            : flagNumber;
-        flagNumber =
-          flagNumber >= OUTPOINT_PEGIN_DEC
-            ? flagNumber - OUTPOINT_PEGIN_DEC
-            : flagNumber;
-        stringIndex =
-          stringIndex.slice(0, 6) +
-          flagNumber.toString(16) +
-          stringIndex.slice(7);
-        inIndex = Buffer.from(stringIndex, 'hex');
+        if (inIndex & OUTPOINT_PEGIN_FLAG) {
+          inIsPegin = true;
+        }
+        inIndex &= OUTPOINT_INDEX_MASK;
       }
 
       tx.ins.push({
@@ -294,6 +285,7 @@ export class Transaction {
         index: inIndex,
         script: inScript,
         sequence: inSequence,
+        isPegin: inIsPegin,
         issuance: inIssuance,
       });
     }
@@ -308,14 +300,14 @@ export class Transaction {
       let outAmountCommitment: string | undefined;
 
       if (
-        outValueBuffer.readUIntBE(0, 1) === 1 &&
+        outValueBuffer.readUIntLE(0, 1) === 1 &&
         outValueBuffer.length === 9
       ) {
+        const reverseValueBuffer: Buffer = Buffer.allocUnsafe(8);
+        outValueBuffer.slice(1, 9).copy(reverseValueBuffer, 0);
+        reverseBuffer(reverseValueBuffer);
         outValue = valueFromAmount(
-          bufferutils.readUInt64LE(
-            reverseBuffer(outValueBuffer.slice(1, 9)),
-            0,
-          ),
+          bufferutils.readUInt64LE(reverseValueBuffer, 0),
         );
       } else outAmountCommitment = outValueBuffer.toString('hex');
 
@@ -376,9 +368,10 @@ export class Transaction {
 
   addInput(
     hash: Buffer,
-    index: Buffer,
+    index: number,
     sequence?: number,
     scriptSig?: Buffer,
+    inIsPegin?: boolean,
     inIssuance?: Issuance,
   ): number {
     typeforce(
@@ -387,6 +380,7 @@ export class Transaction {
         types.Buffer,
         types.maybe(types.UInt32),
         types.maybe(types.Buffer),
+        types.maybe(types.Boolean),
         types.maybe(types.Object),
       ),
       arguments,
@@ -403,6 +397,7 @@ export class Transaction {
         index,
         script: scriptSig || EMPTY_SCRIPT,
         sequence: sequence as number,
+        isPegin: inIsPegin as boolean,
         issuance: inIssuance,
       }) - 1
     );
@@ -422,11 +417,14 @@ export class Transaction {
     let outValue: string | undefined;
     let outAmountCommitment: string | undefined;
 
-    if (_nValue.readUIntBE(0, 1) === 1 && _nValue.length === 9)
+    if (_nValue.readUIntLE(0, 1) === 1 && _nValue.length === 9) {
+      const reverseValueBuffer: Buffer = Buffer.allocUnsafe(8);
+      _nValue.slice(1, 9).copy(reverseValueBuffer, 0);
+      reverseBuffer(reverseValueBuffer);
       outValue = valueFromAmount(
-        bufferutils.readUInt64LE(reverseBuffer(_nValue.slice(1, 9)), 0),
+        bufferutils.readUInt64LE(reverseValueBuffer, 0),
       );
-    else outAmountCommitment = _nValue.toString('hex');
+    } else outAmountCommitment = _nValue.toString('hex');
 
     // Add the output and return the output's index
     return (
@@ -474,6 +472,7 @@ export class Transaction {
         index: txIn.index,
         script: txIn.script,
         sequence: txIn.sequence,
+        isPegin: txIn.isPegin,
         issuance: txIn.issuance,
       };
     });
@@ -733,16 +732,15 @@ export class Transaction {
     this.ins.forEach(txIn => {
       writeSlice(txIn.hash);
       let prevIndex = txIn.index;
-      if (txIn.issuance) {
-        let stringIndex = prevIndex.toString('hex');
-        const flagNumber = parseInt(stringIndex[6], 16) + OUTPOINT_ISSUANCE_DEC;
-        stringIndex =
-          stringIndex.slice(0, 6) +
-          flagNumber.toString(16) +
-          stringIndex.slice(7);
-        prevIndex = Buffer.from(stringIndex, 'hex');
+      if (forceZeroFlag === false || forceZeroFlag === undefined) {
+        if (txIn.issuance) {
+          prevIndex = (prevIndex | OUTPOINT_ISSUANCE_FLAG) >>> 0;
+        }
+        if (txIn.isPegin) {
+          prevIndex = (prevIndex | OUTPOINT_PEGIN_FLAG) >>> 0;
+        }
       }
-      writeSlice(prevIndex);
+      writeUInt32(prevIndex);
       writeVarSlice(txIn.script);
       writeUInt32(txIn.sequence);
 
