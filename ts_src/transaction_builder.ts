@@ -1,5 +1,5 @@
 import * as baddress from './address';
-import { reverseBuffer } from './bufferutils';
+import { reverseBuffer, writeUInt64LE } from './bufferutils';
 import * as classify from './classify';
 import * as bcrypto from './crypto';
 import { ECPairInterface } from './ecpair';
@@ -217,7 +217,7 @@ export class TransactionBuilder {
     const numToBuffer: Buffer = Buffer.alloc(8);
 
     if (typeof nValue === 'number') {
-      numToBuffer.writeUInt32LE(nValue, 0);
+      writeUInt64LE(numToBuffer, nValue, 0);
       nValue = Buffer.concat([
         Buffer.from('01', 'hex'),
         reverseBuffer(numToBuffer),

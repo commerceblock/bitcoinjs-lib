@@ -39,7 +39,7 @@ describe('Transaction', () => {
       const numToBuffer = Buffer.alloc(8);
 
       if (txOut.value) {
-        numToBuffer.writeUInt32LE(txOut.value, 0);
+        BufferUtils.writeUInt64LE(numToBuffer, txOut.value, 0);
         value = Buffer.concat([
           Buffer.from('01', 'hex'),
           BufferUtils.reverseBuffer(numToBuffer),

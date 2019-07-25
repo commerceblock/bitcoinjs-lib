@@ -444,6 +444,36 @@
       "coinbase": false,
       "virtualSize": 232,
       "weight": 928
+    },
+    {
+      "description": "Issuance Transaction",
+      "id": "26fecea8ce7599eb1442cc981e55a69840077ff2fb21454e4625677c02b7dbfa",
+      "hash": "fadbb7027c6725464e4521fbf27f074098a6551e98cc4214eb9975cea8cefe26",
+      "hex": "01000000000178fdfddeafc3bac34abe63efee0d64f7d817cee508ded08746ba4ae6df5349cb0000008000ffffffff000000000000000000000000000000000000000000000000000000000000000006226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f01000775f05a0740000100000000000000000101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100001319718a500000015100000000",
+      "whex": "",
+      "raw": {
+        "version": 1,
+        "ins": [
+          {
+            "hash": "78fdfddeafc3bac34abe63efee0d64f7d817cee508ded08746ba4ae6df5349cb",
+            "index": 2147483648,
+            "script": ""
+          }
+        ],
+        "outs": [
+          {
+            "value": 21000000000000,
+            "script": "OP_DUP OP_HASH160 851a33a5ef0d4279bd5854949174e2c65b1d4500 OP_EQUALVERIFY OP_CHECKSIG",
+            "scriptHex": "76a914851a33a5ef0d4279bd5854949174e2c65b1d450088ac",
+            "asset": "01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d",
+            "nonce": "00"
+          }
+        ],
+        "locktime": 0
+      },
+      "coinbase": false,
+      "virtualSize": 179,
+      "weight": 716
     }
   ],
   "hashForSignature": [

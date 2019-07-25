@@ -122,7 +122,7 @@ class TransactionBuilder {
     }
     const numToBuffer = Buffer.alloc(8);
     if (typeof nValue === 'number') {
-      numToBuffer.writeUInt32LE(nValue, 0);
+      bufferutils_1.writeUInt64LE(numToBuffer, nValue, 0);
       nValue = Buffer.concat([
         Buffer.from('01', 'hex'),
         bufferutils_1.reverseBuffer(numToBuffer),

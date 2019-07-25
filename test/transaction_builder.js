@@ -17,7 +17,7 @@ const emptyNonce = Buffer.from('00', 'hex');
 
 function constructValueBuffer (val) {
   const numToBuffer = Buffer.alloc(8)
-  numToBuffer.writeUInt32LE(val, 0);
+  BufferUtils.writeUInt64LE(numToBuffer, val, 0);
   return Buffer.concat([
     Buffer.from('01', 'hex'),
     BufferUtils.reverseBuffer(numToBuffer),
