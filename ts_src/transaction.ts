@@ -14,14 +14,16 @@ function varSliceSize(someScript: Buffer): number {
   return varuint.encodingLength(length) + length;
 }
 
+const COIN = 100000000;
+
 function valueFromAmount(amount: number): string {
   const sign = amount < 0;
   let prefix = '';
   if (sign) prefix = '-';
 
   const nAbs = sign ? -amount : amount;
-  const quotient = Math.floor(nAbs / 100000000);
-  const remainder = nAbs % 100000000;
+  const quotient = Math.floor(nAbs / COIN);
+  const remainder = nAbs % COIN;
   // Have to pad zeros manually as typescript does not support padStart
   // unless it is defined to compile with newer ES2017 standard
   let remainderStr = remainder.toString();
