@@ -5,6 +5,7 @@ export interface BlankOutput {
     nonce: Buffer;
     script: Buffer;
     value?: string;
+    amount?: number;
     amountCommitment?: string;
 }
 export interface Output {
@@ -13,6 +14,7 @@ export interface Output {
     nonce: Buffer;
     script: Buffer;
     value?: string;
+    amount?: number;
     amountCommitment?: string;
 }
 export interface WitnessInput {

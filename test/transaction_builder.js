@@ -3,6 +3,7 @@ const assert = require('assert')
 const baddress = require('../src/address')
 const bscript = require('../src/script')
 const payments = require('../src/payments')
+const BufferUtils = require('../src/bufferutils')
 
 const ECPair = require('../src/ecpair')
 const Transaction = require('..').Transaction
@@ -13,6 +14,15 @@ const fixtures = require('./fixtures/transaction_builder')
 
 const assethex = '01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d'
 const emptyNonce = Buffer.from('00', 'hex');
+
+function constructValueBuffer (val) {
+  const numToBuffer = Buffer.alloc(8)
+  numToBuffer.writeUInt32LE(val, 0);
+  return Buffer.concat([
+    Buffer.from('01', 'hex'),
+    BufferUtils.reverseBuffer(numToBuffer),
+  ])
+}
 
 function constructSign (f, txb) {
   const network = NETWORKS[f.network]
@@ -74,10 +84,19 @@ function construct (f, dontSign) {
   })
 
   f.outputs.forEach(output => {
+
+    let value
+    const numToBuffer = Buffer.alloc(8)
+
+    if (output.value) {
+      value = constructValueBuffer(output.value)
+    }
+    else
+      value = Buffer.from(output.nValue, 'hex')
     if (output.address) {
-      txb.addOutput(output.asset, output.nValue, output.nonce, output.address)
+      txb.addOutput(output.asset, value, Buffer.from(output.nonce, 'hex'), output.address)
     } else {
-      txb.addOutput(output.asset, output.nValue, output.nonce, bscript.fromASM(output.script))
+      txb.addOutput(output.asset, value, Buffer.from(output.nonce, 'hex'), bscript.fromASM(output.script))
     }
   })
 
@@ -121,7 +140,15 @@ describe('TransactionBuilder', () => {
         })
 
         f.outputs.forEach(output => {
-          tx.addOutput(Buffer.from(output.asset, 'hex'), output.nValue, output.nonce, bscript.fromASM(output.script))
+          let value
+          const numToBuffer = Buffer.alloc(8)
+
+          if (output.value) {
+            value = constructValueBuffer(output.value)
+          }
+          else
+            value = Buffer.from(output.nValue, 'hex')
+          tx.addOutput(Buffer.from(output.asset, 'hex'), value, Buffer.from(output.nonce, 'hex'), bscript.fromASM(output.script))
         })
 
         const txb = TransactionBuilder.fromTransaction(tx)
@@ -210,7 +237,7 @@ describe('TransactionBuilder', () => {
     it('accepts a prevTx, index [and sequence number]', () => {
       const prevTx = new Transaction()
       prevTx.addOutput(Buffer.from(assethex, 'hex'), Buffer.from('010000000000000000', 'hex'), emptyNonce, scripts[0])
-      prevTx.addOutput(Buffer.from(assethex, 'hex'), Buffer.from('010100000000000000', 'hex'), emptyNonce, scripts[1])
+      prevTx.addOutput(Buffer.from(assethex, 'hex'), Buffer.from('010000000000000001', 'hex'), emptyNonce, scripts[1])
 
       const vin = txb.addInput(prevTx, 1, 54)
       assert.strictEqual(vin, 0)
@@ -244,23 +271,25 @@ describe('TransactionBuilder', () => {
       txb = new TransactionBuilder()
     })
 
-    it('accepts an address string and value', () => {
+    it('accepts an address string & value & amount', () => {
       const { address } = payments.p2pkh({ pubkey: keyPair.publicKey })
       const vout = txb.addOutput(assethex, 1000, emptyNonce, address)
       assert.strictEqual(vout, 0)
 
       const txout = txb.__TX.outs[0]
       assert.deepStrictEqual(txout.script, scripts[0])
-      assert.strictEqual(txout.value, 1000)
+      assert.strictEqual(txout.amount, 1000)
+      assert.strictEqual(txout.value, '0.00001')
     })
 
-    it('accepts a ScriptPubKey and value', () => {
+    it('accepts a ScriptPubKey & value & amount', () => {
       const vout = txb.addOutput(assethex, 1000, emptyNonce, scripts[0])
       assert.strictEqual(vout, 0)
 
       const txout = txb.__TX.outs[0]
       assert.deepStrictEqual(txout.script, scripts[0])
-      assert.strictEqual(txout.value, 1000)
+      assert.strictEqual(txout.amount, 1000)
+      assert.strictEqual(txout.value, '0.00001')
     })
 
     it('throws if address is of the wrong network', () => {
@@ -333,7 +362,7 @@ describe('TransactionBuilder', () => {
       txb.addInput('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 1)
       txb.addOutput(assethex, 100000, emptyNonce, '1111111111111111111114oLvT2')
       txb.sign(0, keyPair)
-      assert.strictEqual(txb.build().toHex(), '010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff010000006a47304402205f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f02205f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f0121031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078fffffffff01a0860100000000001976a914000000000000000000000000000000000000000088ace44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d00000000')
+      assert.strictEqual(txb.build().toHex(), '010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff010000006a47304402205f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f02205f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f0121031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078fffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d0100000000000186a0001976a914000000000000000000000000000000000000000088ac00000000')
     })
 
     it('supports low R signature signing', () => {
@@ -343,7 +372,7 @@ describe('TransactionBuilder', () => {
       txb.addOutput(assethex, 100000, emptyNonce, '1111111111111111111114oLvT2')
       txb.sign(0, keyPair)
       // high R
-      assert.strictEqual(txb.build().toHex(), '010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff010000006a473044022067ac145ee9cbf7c512aea4b5a35957965a61fbe376451a0eee06ce71ea4eaf600220503e6cca17d38fd8028543c65136c8d1f75307e4fd897e3f3557c4cd4731d5ad01210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff01a0860100000000001976a914000000000000000000000000000000000000000088ace44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d00000000')
+      assert.strictEqual(txb.build().toHex(), '010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff010000006b483045022100f288f868d2b9ee6547faabc39c03b058698e0c38fb4c7707a4fb60b6df84d991022008f7a3f267932260a60fa6d6bf49a9a83da36990ba8f62bad221ff9414df3e6501210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d0100000000000186a0001976a914000000000000000000000000000000000000000088ac00000000')
 
       txb = new TransactionBuilder()
       txb.setVersion(1)
@@ -352,7 +381,7 @@ describe('TransactionBuilder', () => {
       txb.setLowR()
       txb.sign(0, keyPair)
       // low R
-      assert.strictEqual(txb.build().toHex(), '010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff010000006a473044022067ac145ee9cbf7c512aea4b5a35957965a61fbe376451a0eee06ce71ea4eaf600220503e6cca17d38fd8028543c65136c8d1f75307e4fd897e3f3557c4cd4731d5ad01210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff01a0860100000000001976a914000000000000000000000000000000000000000088ace44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d00000000')
+      assert.strictEqual(txb.build().toHex(), '010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff010000006a47304402205f55edecba14408eeecefc7192318e7280e30efe14f0dae5e7803ab6fdef6dab02204df7a10133f680ffb77da760ce9b124df7b77477183a51c50f3d1d5d4d699fb301210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d0100000000000186a0001976a914000000000000000000000000000000000000000088ac00000000')
     })
 
     fixtures.invalid.sign.forEach(f => {
@@ -442,7 +471,7 @@ describe('TransactionBuilder', () => {
     })
 
     it('for incomplete with 0 signatures', () => {
-      const randomTxData = '01000000000100010000000000000000000000000000000000000000000000000000000000000000000000ffffffff01e8030000000000001976a9144c9c3dfac4207d5d8cb89df5722cb3d712385e3f88ace44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d00000000'
+      const randomTxData = '01000000000100010000000000000000000000000000000000000000000000000000000000000000000000ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d0100000000000003e8001976a9144c9c3dfac4207d5d8cb89df5722cb3d712385e3f88ac00000000'
       const randomAddress = '1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH'
 
       const randomTx = Transaction.fromHex(randomTxData)
@@ -454,7 +483,7 @@ describe('TransactionBuilder', () => {
     })
 
     it('for incomplete P2SH with 0 signatures', () => {
-      const inp = Buffer.from('01000000000173120703f67318aef51f7251272a6816d3f7523bb25e34b136d80be959391c100000000000ffffffff0100c817a80400000017a91471a8ec07ff69c6c4fee489184c462a9b1b92374887e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d00000000', 'hex') // arbitrary P2SH input
+      const inp = Buffer.from('01000000000173120703f67318aef51f7251272a6816d3f7523bb25e34b136d80be959391c100000000000ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d0100000004a817c8000017a91471a8ec07ff69c6c4fee489184c462a9b1b9237488700000000', 'hex') // arbitrary P2SH input
       const inpTx = Transaction.fromBuffer(inp)
 
       const txb = new TransactionBuilder(NETWORKS.testnet)
@@ -508,12 +537,12 @@ describe('TransactionBuilder', () => {
 
     it('should handle badly pre-filled OP_0s', () => {
       // OP_0 is used where a signature is missing
-      const redeemScripSig = bscript.fromASM('OP_0 OP_0 3045022100daf0f4f3339d9fbab42b098045c1e4958ee3b308f4ae17be80b63808558d0adb02202f07e3d1f79dc8da285ae0d7f68083d769c11f5621ebd9691d6b48c0d4283d7d01 52410479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b84104c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a4104f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9388f7b0f632de8140fe337e62a37f3566500a99934c2231b6cb9fd7584b8e67253ae')
+      const redeemScripSig = bscript.fromASM('OP_0 OP_0 3044022057fed9618cebd7c47c6f41e7f2a4c06d0372d43517be1f387ec2e29945ed9b980220249d2ac58db78cb057b825b1e97ba4eaf234f7bda6f4f9c918f7d2ec6e4329c401 52410479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b84104c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a4104f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9388f7b0f632de8140fe337e62a37f3566500a99934c2231b6cb9fd7584b8e67253ae')
       const redeemScript = bscript.fromASM('OP_2 0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8 04c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a 04f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9388f7b0f632de8140fe337e62a37f3566500a99934c2231b6cb9fd7584b8e672 OP_3 OP_CHECKMULTISIG')
 
       const tx = new Transaction()
       tx.addInput(Buffer.from('cff58855426469d0ef16442ee9c644c4fb13832467bcbc3173168a7916f07149', 'hex'), 0, undefined, redeemScripSig)
-      tx.addOutput(Buffer.from(assethex, 'hex'), 1000, emptyNonce, Buffer.from('76a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac', 'hex'))
+      tx.addOutput(Buffer.from(assethex, 'hex'), constructValueBuffer(1000), emptyNonce, Buffer.from('76a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac', 'hex'))
 
       // now import the Transaction
       const txb = TransactionBuilder.fromTransaction(tx, NETWORKS.testnet)
@@ -522,8 +551,8 @@ describe('TransactionBuilder', () => {
       txb.sign(0, keyPair2, redeemScript)
 
       const tx2 = txb.build()
-      assert.strictEqual(tx2.getId(), 'eab59618a564e361adef6d918bd792903c3d41bcf1220137364fb847880467f9')
-      assert.strictEqual(bscript.toASM(tx2.ins[0].script), 'OP_0 3045022100daf0f4f3339d9fbab42b098045c1e4958ee3b308f4ae17be80b63808558d0adb02202f07e3d1f79dc8da285ae0d7f68083d769c11f5621ebd9691d6b48c0d4283d7d01 3045022100a346c61738304eac5e7702188764d19cdf68f4466196729db096d6c87ce18cdd022018c0e8ad03054b0e7e235cda6bedecf35881d7aa7d94ff425a8ace7220f38af001 52410479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b84104c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a4104f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9388f7b0f632de8140fe337e62a37f3566500a99934c2231b6cb9fd7584b8e67253ae')
+      assert.strictEqual(tx2.getId(), 'c6952a49fa00bd6549e66f5b84a49e5b59aea93cf3fbbcb2e28e7a3ab177dc60')
+      assert.strictEqual(bscript.toASM(tx2.ins[0].script), 'OP_0 3044022057fed9618cebd7c47c6f41e7f2a4c06d0372d43517be1f387ec2e29945ed9b980220249d2ac58db78cb057b825b1e97ba4eaf234f7bda6f4f9c918f7d2ec6e4329c401 3044022043aff972c1211572e279e2b310d25b645d99e0b45da7131adb0a290623b1324202201d695ff4d30a851920d417ce7a079f7707d8847b1f4ffcf71481386fa575cb6401 52410479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b84104c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a4104f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9388f7b0f632de8140fe337e62a37f3566500a99934c2231b6cb9fd7584b8e67253ae')
     })
 
     it('should not classify blank scripts as nonstandard', () => {
@@ -538,7 +567,7 @@ describe('TransactionBuilder', () => {
       txb.addOutput(assethex, 15000, emptyNonce, '1Gokm82v6DmtwKEB8AiVhm82hyFSsEvBDK')
       txb.sign(0, keyPair)
       const txId = txb.build().getId()
-      assert.strictEqual(txId, 'bcd4e60597fe9a6fd730cbc5762e29f549e1c6d48199bf79fe8016df90016c9e')
+      assert.strictEqual(txId, '983a1b16482a0b89bd8134cd8fd09f857b459c15c8d9b8d3eabf8f354439ac28')
 
       // and, repeat
       txb = TransactionBuilder.fromTransaction(Transaction.fromHex(incomplete))

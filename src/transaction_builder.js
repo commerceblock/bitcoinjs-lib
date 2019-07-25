@@ -81,11 +81,11 @@ class TransactionBuilder {
     // XXX: this might eventually become more complex depending on what the versions represent
     this.__TX.version = version;
   }
-  addInput(txHash, vout, sequence, prevOutScript, inIsPegin, inIssuance) {
+  addInput(txHash, vout, inSequence, inPrevOutScript, inIsPegin, inIssuance) {
     if (!this.__canModifyInputs()) {
       throw new Error('No, this would invalidate signatures');
     }
-    let value;
+    let inAmount;
     // is it a hex string?
     if (txIsString(txHash)) {
       // transaction hashs's are displayed in reverse order, un-reverse it
@@ -93,16 +93,15 @@ class TransactionBuilder {
       // is it a Transaction object?
     } else if (txIsTransaction(txHash)) {
       const txOut = txHash.outs[vout];
-      prevOutScript = txOut.script;
-      const valStr = txOut.value;
-      if (valStr && valStr !== '')
-        value = parseInt(valStr.replace('.', ''), 10);
+      inPrevOutScript = txOut.script;
+      const amountNum = txOut.amount;
+      if (amountNum) inAmount = amountNum;
       txHash = txHash.getHash();
     }
     return this.__addInputUnsafe(txHash, vout, {
-      sequence,
-      prevOutScript,
-      value,
+      sequence: inSequence,
+      prevOutScript: inPrevOutScript,
+      amount: inAmount,
       isPegin: inIsPegin,
       issuance: inIssuance,
     });
@@ -188,9 +187,9 @@ class TransactionBuilder {
     if (options.script !== undefined) {
       input = expandInput(options.script);
     }
-    // if an input value was given, retain it
-    if (options.value !== undefined) {
-      input.value = options.value;
+    // if an input amount was given, retain it
+    if (options.amount !== undefined) {
+      input.amount = options.amount;
     }
     // derive what we can from the previous transactions output script
     if (!input.prevOutScript && options.prevOutScript) {
@@ -299,16 +298,13 @@ class TransactionBuilder {
     });
   }
   __overMaximumFees(bytes) {
-    // not all inputs will have .value defined
-    const incoming = this.__INPUTS.reduce((a, x) => a + (x.value >>> 0), 0);
+    // not all inputs will have .amount defined
+    const incoming = this.__INPUTS.reduce((a, x) => a + (x.amount >>> 0), 0);
     // but all outputs do, and if we have any input value
     // we can immediately determine if the outputs are too small
     const outgoing = this.__TX.outs.reduce((a, x) => {
-      const valStr = x.value;
-      return (
-        a +
-        (valStr && valStr !== '' ? parseInt(valStr.replace('.', ''), 10) : 0)
-      );
+      const amountNum = x.amount;
+      return a + (amountNum ? amountNum : 0);
     }, 0);
     const fee = incoming - outgoing;
     const feeRate = fee / bytes;

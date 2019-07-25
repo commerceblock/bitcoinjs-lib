@@ -23,7 +23,7 @@ type TxbScriptType = string;
 type TxbScript = Buffer;
 
 interface TxbInput {
-  value?: number;
+  amount?: number;
   signScript?: TxbScript;
   signType?: TxbScriptType;
   prevOutScript?: TxbScript;
@@ -155,8 +155,8 @@ export class TransactionBuilder {
   addInput(
     txHash: Buffer | string | Transaction,
     vout: number,
-    sequence?: number,
-    prevOutScript?: Buffer,
+    inSequence?: number,
+    inPrevOutScript?: Buffer,
     inIsPegin?: boolean,
     inIssuance?: Issuance,
   ): number {
@@ -164,7 +164,7 @@ export class TransactionBuilder {
       throw new Error('No, this would invalidate signatures');
     }
 
-    let value: number | undefined;
+    let inAmount: number | undefined;
 
     // is it a hex string?
     if (txIsString(txHash)) {
@@ -174,19 +174,18 @@ export class TransactionBuilder {
       // is it a Transaction object?
     } else if (txIsTransaction(txHash)) {
       const txOut = txHash.outs[vout];
-      prevOutScript = txOut.script;
+      inPrevOutScript = txOut.script;
 
-      const valStr = (txOut as Output).value;
-      if (valStr && valStr !== '')
-        value = parseInt(valStr.replace('.', ''), 10);
+      const amountNum = (txOut as Output).amount;
+      if (amountNum) inAmount = amountNum;
 
       txHash = txHash.getHash() as Buffer;
     }
 
     return this.__addInputUnsafe(txHash, vout, {
-      sequence,
-      prevOutScript,
-      value,
+      sequence: inSequence,
+      prevOutScript: inPrevOutScript,
+      amount: inAmount,
       isPegin: inIsPegin,
       issuance: inIssuance,
     });
@@ -315,9 +314,9 @@ export class TransactionBuilder {
       input = expandInput(options.script);
     }
 
-    // if an input value was given, retain it
-    if (options.value !== undefined) {
-      input.value = options.value;
+    // if an input amount was given, retain it
+    if (options.amount !== undefined) {
+      input.amount = options.amount;
     }
 
     // derive what we can from the previous transactions output script
@@ -447,17 +446,14 @@ export class TransactionBuilder {
   }
 
   private __overMaximumFees(bytes: number): boolean {
-    // not all inputs will have .value defined
-    const incoming = this.__INPUTS.reduce((a, x) => a + (x.value! >>> 0), 0);
+    // not all inputs will have .amount defined
+    const incoming = this.__INPUTS.reduce((a, x) => a + (x.amount! >>> 0), 0);
 
     // but all outputs do, and if we have any input value
     // we can immediately determine if the outputs are too small
     const outgoing = this.__TX.outs.reduce((a, x) => {
-      const valStr = (x as Output).value;
-      return (
-        a +
-        (valStr && valStr !== '' ? parseInt(valStr.replace('.', ''), 10) : 0)
-      );
+      const amountNum = (x as Output).amount;
+      return a + (amountNum ? amountNum : 0);
     }, 0);
     const fee = incoming - outgoing;
     const feeRate = fee / bytes;

@@ -17,13 +17,15 @@ function valueFromAmount(amount) {
   let prefix = '';
   if (sign) prefix = '-';
   const nAbs = sign ? -amount : amount;
-  const quotient = nAbs / 100000000;
+  const quotient = Math.floor(nAbs / 100000000);
   const remainder = nAbs % 100000000;
   // Have to pad zeros manually as typescript does not support padStart
   // unless it is defined to compile with newer ES2017 standard
   let remainderStr = remainder.toString();
   remainderStr = '0'.repeat(8 - remainderStr.length) + remainderStr;
-  const numString = prefix + quotient.toString() + '.' + remainderStr;
+  let numString = prefix + quotient.toString() + '.' + remainderStr;
+  // Doing this to remove the trailing zeros on the right hand side.
+  numString = parseFloat(numString).toString();
   return numString;
 }
 const EMPTY_SCRIPT = Buffer.allocUnsafe(0);
@@ -217,6 +219,7 @@ class Transaction {
       // TODO We are not handling confidential values
       let outValue;
       let outAmountCommitment;
+      let outAmount;
       if (
         outValueBuffer.readUIntLE(0, 1) === 1 &&
         outValueBuffer.length === 9
@@ -224,9 +227,8 @@ class Transaction {
         const reverseValueBuffer = Buffer.allocUnsafe(8);
         outValueBuffer.slice(1, 9).copy(reverseValueBuffer, 0);
         bufferutils_1.reverseBuffer(reverseValueBuffer);
-        outValue = valueFromAmount(
-          bufferutils.readUInt64LE(reverseValueBuffer, 0),
-        );
+        outAmount = bufferutils.readUInt64LE(reverseValueBuffer, 0);
+        outValue = valueFromAmount(outAmount);
       } else outAmountCommitment = outValueBuffer.toString('hex');
       tx.outs.push({
         asset: assetBuffer,
@@ -234,6 +236,7 @@ class Transaction {
         nonce: readConfidentialNonce(),
         script: readVarSlice(),
         value: outValue,
+        amount: outAmount,
         amountCommitment: outAmountCommitment,
       });
     }
@@ -300,13 +303,13 @@ class Transaction {
     );
     let outValue;
     let outAmountCommitment;
+    let outAmount;
     if (_nValue.readUIntLE(0, 1) === 1 && _nValue.length === 9) {
       const reverseValueBuffer = Buffer.allocUnsafe(8);
       _nValue.slice(1, 9).copy(reverseValueBuffer, 0);
       bufferutils_1.reverseBuffer(reverseValueBuffer);
-      outValue = valueFromAmount(
-        bufferutils.readUInt64LE(reverseValueBuffer, 0),
-      );
+      outAmount = bufferutils.readUInt64LE(reverseValueBuffer, 0);
+      outValue = valueFromAmount(outAmount);
     } else outAmountCommitment = _nValue.toString('hex');
     // Add the output and return the output's index
     return (
@@ -316,6 +319,7 @@ class Transaction {
         nonce: _nonce,
         script: scriptPubKey,
         value: outValue,
+        amount: outAmount,
         amountCommitment: outAmountCommitment,
       }) - 1
     );
@@ -359,6 +363,7 @@ class Transaction {
         nonce: txOut.nonce,
         script: txOut.script,
         value: txOut.value,
+        amount: txOut.amount,
         amountCommitment: txOut.amountCommitment,
       };
     });

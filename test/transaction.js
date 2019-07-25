@@ -3,6 +3,7 @@ const assert = require('assert')
 const bscript = require('../src/script')
 const fixtures = require('./fixtures/transaction')
 const Transaction = require('..').Transaction
+const BufferUtils = require('../src/bufferutils')
 
 const emptyNonce = Buffer.from('00', 'hex');
 
@@ -41,7 +42,7 @@ describe('Transaction', () => {
         numToBuffer.writeUInt32LE(txOut.value, 0);
         value = Buffer.concat([
           Buffer.from('01', 'hex'),
-          numToBuffer,
+          BufferUtils.reverseBuffer(numToBuffer),
         ]);
       }
 
@@ -162,8 +163,8 @@ describe('Transaction', () => {
   describe('addOutput', () => {
     it('returns an index', () => {
       const tx = new Transaction()
-      assert.strictEqual(tx.addOutput(Buffer.from('01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex'), Buffer.alloc(0), Buffer.alloc(0), Buffer.alloc(0)), 0)
-      assert.strictEqual(tx.addOutput(Buffer.from('01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex'), Buffer.alloc(0), Buffer.alloc(0), Buffer.alloc(0)), 1)
+      assert.strictEqual(tx.addOutput(Buffer.from('01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex'), Buffer.alloc(1), Buffer.alloc(1), Buffer.alloc(0)), 0)
+      assert.strictEqual(tx.addOutput(Buffer.from('01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d', 'hex'), Buffer.alloc(1), Buffer.alloc(1), Buffer.alloc(0)), 1)
     })
   })
 

@@ -20,7 +20,7 @@ export declare class TransactionBuilder {
     setLowR(setting?: boolean): boolean;
     setLockTime(locktime: number): void;
     setVersion(version: number): void;
-    addInput(txHash: Buffer | string | Transaction, vout: number, sequence?: number, prevOutScript?: Buffer, inIsPegin?: boolean, inIssuance?: Issuance): number;
+    addInput(txHash: Buffer | string | Transaction, vout: number, inSequence?: number, inPrevOutScript?: Buffer, inIsPegin?: boolean, inIssuance?: Issuance): number;
     addOutput(asset: string | Buffer, nValue: number | Buffer, nonce: string | Buffer, scriptPubKey: string | Buffer): number;
     build(): Transaction;
     buildIncomplete(): Transaction;
