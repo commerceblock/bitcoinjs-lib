@@ -56,6 +56,7 @@ class Transaction {
   constructor() {
     this.version = 1;
     this.locktime = 0;
+    this.flag = 0;
     this.ins = [];
     this.outs = [];
     this.witnessIn = [];
@@ -186,7 +187,7 @@ class Transaction {
     }
     const tx = new Transaction();
     tx.version = readInt32();
-    const flag = readUInt8();
+    tx.flag = readUInt8();
     const vinLen = readVarInt();
     for (let i = 0; i < vinLen; ++i) {
       const inHash = readSlice(32);
@@ -244,7 +245,7 @@ class Transaction {
     tx.locktime = readUInt32();
     let witnessIn = [];
     let witnessOut = [];
-    if (flag === 1) {
+    if (tx.flag === 1) {
       witnessIn = readWitnessIn(tx.ins.length);
       witnessOut = readWitnessOut(tx.outs.length);
     }
@@ -345,6 +346,7 @@ class Transaction {
     const newTx = new Transaction();
     newTx.version = this.version;
     newTx.locktime = this.locktime;
+    newTx.flag = this.flag;
     newTx.witnessIn = this.witnessIn;
     newTx.witnessOut = this.witnessOut;
     newTx.ins = this.ins.map(txIn => {

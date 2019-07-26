@@ -13,9 +13,13 @@ describe('Transaction', () => {
     tx.version = raw.version
     tx.locktime = raw.locktime
 
+    if(raw.flag)
+      tx.flag = raw.flag
+
     raw.ins.forEach((txIn, i) => {
       const txHash = Buffer.from(txIn.hash, 'hex')
       let scriptSig
+      let issuance
 
       if (txIn.data) {
         scriptSig = Buffer.from(txIn.data, 'hex')
@@ -23,7 +27,16 @@ describe('Transaction', () => {
         scriptSig = bscript.fromASM(txIn.script)
       }
 
-      tx.addInput(txHash, txIn.index, txIn.sequence, scriptSig)
+      if (txIn.issuance) {
+        issuance = {
+          assetBlindingNonce: Buffer.from(txIn.issuance.assetBlindingNonce, 'hex'),
+          assetEntropy: Buffer.from(txIn.issuance.assetEntropy, 'hex'),
+          assetamount: Buffer.from(txIn.issuance.assetamount, 'hex'),
+          tokenamount: Buffer.from(txIn.issuance.tokenamount, 'hex')
+        }
+      }
+
+      tx.addInput(txHash, txIn.index, txIn.sequence, scriptSig, txIn.isPegin, issuance)
     })
 
     raw.outs.forEach(txOut => {
@@ -35,19 +48,58 @@ describe('Transaction', () => {
         script = bscript.fromASM(txOut.script)
       }
 
-      let value
+      let value = Buffer.from('010000000000000000', 'hex')
       const numToBuffer = Buffer.alloc(8);
 
       if (txOut.value) {
-        BufferUtils.writeUInt64LE(numToBuffer, txOut.value, 0);
+        BufferUtils.writeUInt64LE(numToBuffer, txOut.value, 0)
         value = Buffer.concat([
           Buffer.from('01', 'hex'),
           BufferUtils.reverseBuffer(numToBuffer),
-        ]);
+        ])
       }
+      else if (txOut.nValue) value = Buffer.from(txOut.nValue, 'hex')
 
       tx.addOutput(Buffer.from(txOut.asset, 'hex'), value, Buffer.from(txOut.nonce, 'hex'), script)
     })
+
+    witness_in = []
+    witness_out = []
+
+    if (raw.witness_in) {
+      for (let i = 0; i < raw.witness_in.length; ++i) {
+        scriptWitness = []
+        peginWitness = []
+        for (let j = 0; j < raw.witness_in[i].scriptWitness.length; ++j){
+          scriptWitness.push(Buffer.from(raw.witness_in[i].scriptWitness[j], 'hex'))
+        }
+        for (let j = 0; j < raw.witness_in[i].peginWitness.length; ++j){
+          peginWitness.push(Buffer.from(raw.witness_in[i].peginWitness[j], 'hex'))
+        }
+        witness_in.push(
+          {
+            issuanceRangeProof: Buffer.from(raw.witness_in[i].issuanceRangeProof, 'hex'),
+            inflationRangeProof: Buffer.from(raw.witness_in[i].inflationRangeProof, 'hex'),
+            scriptWitness: scriptWitness,
+            peginWitness: peginWitness
+          }
+        )
+      }
+    }
+
+    if (raw.witness_out) {
+      for (let i = 0; i < raw.witness_out.length; ++i) {
+        witness_out.push(
+          {
+            surjectionProof: Buffer.from(raw.witness_out[i].surjectionProof, 'hex'),
+            rangeProof: Buffer.from(raw.witness_out[i].rangeProof, 'hex')
+          }
+        )
+      }  
+    }
+
+    tx.witnessIn = witness_in
+    tx.witnessOut = witness_out
 
     return tx
   }

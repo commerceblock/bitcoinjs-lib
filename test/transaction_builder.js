@@ -62,6 +62,7 @@ function construct (f, dontSign) {
 
   if (Number.isFinite(f.version)) txb.setVersion(f.version)
   if (f.locktime !== undefined) txb.setLockTime(f.locktime)
+  if (f.flag !== undefined) txb.setFlag(f.flag)
 
   f.inputs.forEach(input => {
     let prevTx
@@ -80,7 +81,7 @@ function construct (f, dontSign) {
       prevTxScript = bscript.fromASM(input.prevTxScript)
     }
 
-    txb.addInput(prevTx, input.vout, input.sequence, prevTxScript)
+    txb.addInput(prevTx, input.vout, input.sequence, prevTxScript, input.isPegin, input.issuance)
   })
 
   f.outputs.forEach(output => {

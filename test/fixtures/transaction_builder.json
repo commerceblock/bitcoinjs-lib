@@ -26,6 +26,183 @@
         ]
       },
       {
+        "description": "Transaction w/ P2PKH -> P2PKH (with Issuance information)",
+        "txHex": "01000000000178fdfddeafc3bac34abe63efee0d64f7d817cee508ded08746ba4ae6df5349cb0000008000ffffffff000000000000000000000000000000000000000000000000000000000000000006226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f01000775f05a0740000100000000000000000101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100001319718a500000015100000000",
+        "version": 1,
+        "incomplete": true,
+        "inputs": [
+          {
+            "isPegin": false,
+            "issuance": {
+              "assetBlindingNonce": "0000000000000000000000000000000000000000000000000000000000000000",
+              "assetEntropy": "06226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f",
+              "assetamount": "01000775f05a074000",
+              "tokenamount": "010000000000000000"
+            },
+            "txId": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "vout": 2147483648,
+            "signs": [
+              {
+                "keyPair": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "value": 21000000000000,
+            "script": "OP_TRUE",
+            "scriptHex": "0151",
+            "asset": "01230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2",
+            "nonce": "00"
+          }
+        ]
+      },
+      {
+        "description": "Transaction w/ P2PKH -> P2PKH (with value that is 1 byte)",
+        "txHex": "010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000006b483045022100df2330dfeb69e09562903e9a4c5140de6ffa6486a14ce5a0f92bc2dbb841a4e002203dfe62fd8af6105097c50bcae6976443d52437a72cbd575f9cc0a68fc9fad72801210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d6a001976a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac00000000",
+        "version": 1,
+        "inputs": [
+          {
+            "txId": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "vout": 0,
+            "signs": [
+              {
+                "keyPair": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "script": "OP_DUP OP_HASH160 aa4d7985c57e011a8b3dd8e0e5a73aaef41629c5 OP_EQUALVERIFY OP_CHECKSIG",
+            "nValue": "6a",
+            "asset": "01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d",
+            "nonce": "00"
+          }
+        ]
+      },
+      {
+        "description": "Transaction w/ P2PKH -> P2PKH (with confidential asset version #10)",
+        "txHex": "010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000006a47304402206b5d59f82bad74f889ff5c5efac9e7fae53294308377bfb43752d97aabeea85802204ec9566d843d4b1caeb83a63ae754be21fd3c85b54d139849985960727e4256f01210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff010ae44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d010000000000002710001976a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac00000000",
+        "version": 1,
+        "inputs": [
+          {
+            "txId": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "vout": 0,
+            "signs": [
+              {
+                "keyPair": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "script": "OP_DUP OP_HASH160 aa4d7985c57e011a8b3dd8e0e5a73aaef41629c5 OP_EQUALVERIFY OP_CHECKSIG",
+            "value": 10000,
+            "asset": "0ae44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d",
+            "nonce": "00"
+          }
+        ]
+      },
+      {
+        "description": "Transaction w/ P2PKH -> P2PKH (with a confidential amount)",
+        "txHex": "010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000006b483045022100fdaa9ac224347fa78ed4c96833343f4a71dfa244ddcd43115c722036439ec1280220745a12a7434ae5daf12aade753896afb12c07cdbfaecd026890b95d2884b4b0c01210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d080000000000000000000000000000000000000010000000000000000000000000001976a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac00000000",
+        "version": 1,
+        "inputs": [
+          {
+            "txId": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "vout": 0,
+            "signs": [
+              {
+                "keyPair": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "script": "OP_DUP OP_HASH160 aa4d7985c57e011a8b3dd8e0e5a73aaef41629c5 OP_EQUALVERIFY OP_CHECKSIG",
+            "nValue": "080000000000000000000000000000000000000010000000000000000000000000",
+            "asset": "01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d",
+            "nonce": "00"
+          }
+        ]
+      },
+      {
+        "description": "Transaction w/ P2PKH -> P2PKH (with no asset - 1 byte)",
+        "txHex": "010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000006a4730440220459cb1343a6d1992b874ca44f048cfcbf96d0a523b509747e24af4ba66df37f2022064c344b455fb804ce3ef254c21668a614e46e232dbfb39fcdfab03f7f74c8f8f01210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff01000100000000000003e8001976a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac00000000",
+        "version": 1,
+        "inputs": [
+          {
+            "txId": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "vout": 0,
+            "signs": [
+              {
+                "keyPair": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "script": "OP_DUP OP_HASH160 aa4d7985c57e011a8b3dd8e0e5a73aaef41629c5 OP_EQUALVERIFY OP_CHECKSIG",
+            "value": 1000,
+            "asset": "00",
+            "nonce": "00"
+          }
+        ]
+      },
+      {
+        "description": "Transaction w/ P2PKH -> P2PKH (with a nonce of version 01)",
+        "txHex": "010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000006a4730440220130a2dd05259bb0673bede972a09aeb93160c111a0efce6e3b63f18f07cf5e8b022004d84267c8a118ec72fcd2853bd47ac9a3d3cdbe9c9d80e4769f5e37c9b6efa501210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d0100000000000003e8017dadddd55e62587468668f367b00000000000000000000006a3d018e4e61ae3d1976a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac00000000",
+        "version": 1,
+        "inputs": [
+          {
+            "txId": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "vout": 0,
+            "signs": [
+              {
+                "keyPair": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "script": "OP_DUP OP_HASH160 aa4d7985c57e011a8b3dd8e0e5a73aaef41629c5 OP_EQUALVERIFY OP_CHECKSIG",
+            "value": 1000,
+            "asset": "01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d",
+            "nonce": "017dadddd55e62587468668f367b00000000000000000000006a3d018e4e61ae3d"
+          }
+        ]
+      },
+      {
+        "description": "Transaction w/ P2PKH -> P2PKH (with a nonce of version 02)",
+        "txHex": "010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000006a473044022031cb27db8778bc7a10f0e3226d9a9176da11227045d505990cb1e5a4ef7ceb770220062ee21675f474d03e77904aeda0d866faa285e57836000036a9c49a090cd39801210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d0100000000000003e8027dadddd55e62587468668f367b00000000000000000000006a3d018e4e61ae3d1976a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac00000000",
+        "version": 1,
+        "inputs": [
+          {
+            "txId": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "vout": 0,
+            "signs": [
+              {
+                "keyPair": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "script": "OP_DUP OP_HASH160 aa4d7985c57e011a8b3dd8e0e5a73aaef41629c5 OP_EQUALVERIFY OP_CHECKSIG",
+            "value": 1000,
+            "asset": "01e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d",
+            "nonce": "027dadddd55e62587468668f367b00000000000000000000006a3d018e4e61ae3d"
+          }
+        ]
+      },
+      {
         "description": "Transaction w/ P2PK -> P2PKH",
         "txHex": "010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000049483045022100ab9537efe3beae15697e1897914ee757ce3ead72e45c0670ba825d1f8665c5c50220521b7a8c055a00f1d2ebf75b8b7e5063f1abf8c78ef29a6327cbec006e52f39401ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d01000000009502f900001976a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac00000000",
         "version": 1,

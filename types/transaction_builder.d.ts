@@ -1,12 +1,12 @@
 /// <reference types="node" />
 import { ECPairInterface } from './ecpair';
 import { Network } from './networks';
-import { Transaction } from './transaction';
-export interface Issuance {
-    assetBlindingNonce: Buffer;
-    assetEntropy: Buffer;
-    assetamount: Buffer;
-    tokenamount: Buffer;
+import { Transaction, WitnessInput, WitnessOutput } from './transaction';
+export interface TxbIssuance {
+    assetBlindingNonce: Buffer | string;
+    assetEntropy: Buffer | string;
+    assetamount: Buffer | string;
+    tokenamount: Buffer | string;
 }
 export declare class TransactionBuilder {
     network: Network;
@@ -20,7 +20,10 @@ export declare class TransactionBuilder {
     setLowR(setting?: boolean): boolean;
     setLockTime(locktime: number): void;
     setVersion(version: number): void;
-    addInput(txHash: Buffer | string | Transaction, vout: number, inSequence?: number, inPrevOutScript?: Buffer, inIsPegin?: boolean, inIssuance?: Issuance): number;
+    setWitnessIn(witnessIn: WitnessInput[]): void;
+    setWitnessOut(witnessOut: WitnessOutput[]): void;
+    setFlag(flag: number): void;
+    addInput(txHash: Buffer | string | Transaction, vout: number, inSequence?: number, inPrevOutScript?: Buffer, inIsPegin?: boolean, inIssuance?: TxbIssuance): number;
     addOutput(asset: string | Buffer, nValue: number | Buffer, nonce: string | Buffer, scriptPubKey: string | Buffer): number;
     build(): Transaction;
     buildIncomplete(): Transaction;

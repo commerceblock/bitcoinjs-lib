@@ -10,7 +10,13 @@ import { Payment } from './payments';
 import * as payments from './payments';
 import * as bscript from './script';
 import { OPS as ops } from './script';
-import { Output, Transaction } from './transaction';
+import {
+  Issuance,
+  Output,
+  Transaction,
+  WitnessInput,
+  WitnessOutput,
+} from './transaction';
 import * as types from './types';
 const typeforce = require('typeforce');
 
@@ -40,11 +46,11 @@ interface TxbInput {
   maxSignatures?: number;
 }
 
-export interface Issuance {
-  assetBlindingNonce: Buffer;
-  assetEntropy: Buffer;
-  assetamount: Buffer;
-  tokenamount: Buffer;
+export interface TxbIssuance {
+  assetBlindingNonce: Buffer | string;
+  assetEntropy: Buffer | string;
+  assetamount: Buffer | string;
+  tokenamount: Buffer | string;
 }
 
 interface TxbOutput {
@@ -72,6 +78,9 @@ export class TransactionBuilder {
     // Copy transaction fields
     txb.setVersion(transaction.version);
     txb.setLockTime(transaction.locktime);
+    txb.setFlag(transaction.flag);
+    txb.setWitnessIn(transaction.witnessIn);
+    txb.setWitnessOut(transaction.witnessOut);
 
     // Copy outputs (done first to avoid signature invalidation)
     transaction.outs.forEach(txOut => {
@@ -116,6 +125,7 @@ export class TransactionBuilder {
     this.__INPUTS = [];
     this.__TX = new Transaction();
     this.__TX.version = 2;
+    this.__TX.flag = 0;
     this.__USE_LOW_R = false;
   }
 
@@ -152,13 +162,28 @@ export class TransactionBuilder {
     this.__TX.version = version;
   }
 
+  setWitnessIn(witnessIn: WitnessInput[]): void {
+    typeforce(types.Array, witnessIn);
+    this.__TX.witnessIn = witnessIn;
+  }
+
+  setWitnessOut(witnessOut: WitnessOutput[]): void {
+    typeforce(types.Array, witnessOut);
+    this.__TX.witnessOut = witnessOut;
+  }
+
+  setFlag(flag: number): void {
+    typeforce(types.UInt8, flag);
+    this.__TX.flag = flag;
+  }
+
   addInput(
     txHash: Buffer | string | Transaction,
     vout: number,
     inSequence?: number,
     inPrevOutScript?: Buffer,
     inIsPegin?: boolean,
-    inIssuance?: Issuance,
+    inIssuance?: TxbIssuance,
   ): number {
     if (!this.__canModifyInputs()) {
       throw new Error('No, this would invalidate signatures');
@@ -182,12 +207,52 @@ export class TransactionBuilder {
       txHash = txHash.getHash() as Buffer;
     }
 
+    let passIssuance: Issuance | undefined;
+
+    if (inIssuance) {
+      if (
+        inIssuance.assetBlindingNonce &&
+        inIssuance.assetEntropy &&
+        inIssuance.assetamount &&
+        inIssuance.tokenamount
+      ) {
+        if (
+          typeof inIssuance.assetBlindingNonce === 'string' &&
+          typeof inIssuance.assetEntropy === 'string' &&
+          typeof inIssuance.assetamount === 'string' &&
+          typeof inIssuance.tokenamount === 'string'
+        ) {
+          passIssuance = {
+            assetBlindingNonce: Buffer.from(
+              inIssuance.assetBlindingNonce,
+              'hex',
+            ),
+            assetEntropy: Buffer.from(inIssuance.assetEntropy, 'hex'),
+            assetamount: Buffer.from(inIssuance.assetamount, 'hex'),
+            tokenamount: Buffer.from(inIssuance.tokenamount, 'hex'),
+          };
+        } else if (
+          Buffer.isBuffer(inIssuance.assetBlindingNonce) &&
+          Buffer.isBuffer(inIssuance.assetEntropy) &&
+          Buffer.isBuffer(inIssuance.assetamount) &&
+          Buffer.isBuffer(inIssuance.tokenamount)
+        ) {
+          passIssuance = {
+            assetBlindingNonce: inIssuance.assetBlindingNonce,
+            assetEntropy: inIssuance.assetEntropy,
+            assetamount: inIssuance.assetamount,
+            tokenamount: inIssuance.tokenamount,
+          };
+        }
+      }
+    }
+
     return this.__addInputUnsafe(txHash, vout, {
       sequence: inSequence,
       prevOutScript: inPrevOutScript,
       amount: inAmount,
       isPegin: inIsPegin,
-      issuance: inIssuance,
+      issuance: passIssuance,
     });
   }
 
@@ -201,7 +266,7 @@ export class TransactionBuilder {
       throw new Error('No, this would invalidate signatures');
     }
 
-    // Attempt to get a script if it's a base58 or bech32 address string
+    // Attempt to get a script if it's a base58 address string
     if (typeof scriptPubKey === 'string') {
       scriptPubKey = baddress.toOutputScript(scriptPubKey, this.network);
     }

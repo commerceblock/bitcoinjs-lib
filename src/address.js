@@ -4,7 +4,6 @@ const networks = require('./networks');
 const payments = require('./payments');
 const bscript = require('./script');
 const types = require('./types');
-const bech32 = require('bech32');
 const bs58check = require('bs58check');
 const typeforce = require('typeforce');
 function fromBase58Check(address) {
@@ -17,16 +16,6 @@ function fromBase58Check(address) {
   return { version, hash };
 }
 exports.fromBase58Check = fromBase58Check;
-function fromBech32(address) {
-  const result = bech32.decode(address);
-  const data = bech32.fromWords(result.words.slice(1));
-  return {
-    version: result.words[0],
-    prefix: result.prefix,
-    data: Buffer.from(data),
-  };
-}
-exports.fromBech32 = fromBech32;
 function toBase58Check(hash, version) {
   typeforce(types.tuple(types.Hash160bit, types.UInt8), arguments);
   const payload = Buffer.allocUnsafe(21);
@@ -35,12 +24,6 @@ function toBase58Check(hash, version) {
   return bs58check.encode(payload);
 }
 exports.toBase58Check = toBase58Check;
-function toBech32(data, version, prefix) {
-  const words = bech32.toWords(data);
-  words.unshift(version);
-  return bech32.encode(prefix, words);
-}
-exports.toBech32 = toBech32;
 function fromOutputScript(output, network) {
   // TODO: Network
   network = network || networks.bitcoin;

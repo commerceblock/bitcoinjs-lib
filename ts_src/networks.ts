@@ -2,7 +2,6 @@
 // Dogecoin BIP32 is a proposed standard: https://bitcointalk.org/index.php?topic=409731
 export interface Network {
   messagePrefix: string;
-  bech32: string;
   bip32: Bip32;
   pubKeyHash: number;
   scriptHash: number;
@@ -16,7 +15,6 @@ interface Bip32 {
 
 export const bitcoin: Network = {
   messagePrefix: '\x18Bitcoin Signed Message:\n',
-  bech32: 'bc',
   bip32: {
     public: 0x0488b21e,
     private: 0x0488ade4,
@@ -27,7 +25,6 @@ export const bitcoin: Network = {
 };
 export const regtest: Network = {
   messagePrefix: '\x18Bitcoin Signed Message:\n',
-  bech32: 'bcrt',
   bip32: {
     public: 0x043587cf,
     private: 0x04358394,
@@ -38,7 +35,6 @@ export const regtest: Network = {
 };
 export const testnet: Network = {
   messagePrefix: '\x18Bitcoin Signed Message:\n',
-  bech32: 'tb',
   bip32: {
     public: 0x043587cf,
     private: 0x04358394,

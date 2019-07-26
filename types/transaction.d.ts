@@ -55,6 +55,7 @@ export declare class Transaction {
     static isCoinbaseHash(buffer: Buffer): boolean;
     version: number;
     locktime: number;
+    flag: number;
     ins: Input[];
     outs: OpenOutput[];
     witnessIn: WitnessInput[];

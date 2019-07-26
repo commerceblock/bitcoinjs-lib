@@ -265,7 +265,7 @@ export class Transaction {
 
     tx.version = readInt32();
 
-    const flag = readUInt8();
+    tx.flag = readUInt8();
 
     const vinLen = readVarInt();
     for (let i = 0; i < vinLen; ++i) {
@@ -333,7 +333,7 @@ export class Transaction {
     let witnessIn: WitnessInput[] = [];
     let witnessOut: WitnessOutput[] = [];
 
-    if (flag === 1) {
+    if (tx.flag === 1) {
       witnessIn = readWitnessIn(tx.ins.length);
       witnessOut = readWitnessOut(tx.outs.length);
     }
@@ -362,6 +362,7 @@ export class Transaction {
 
   version: number = 1;
   locktime: number = 0;
+  flag: number = 0;
   ins: Input[] = [];
   outs: OpenOutput[] = [];
   witnessIn: WitnessInput[] = [];
@@ -471,6 +472,7 @@ export class Transaction {
     const newTx = new Transaction();
     newTx.version = this.version;
     newTx.locktime = this.locktime;
+    newTx.flag = this.flag;
     newTx.witnessIn = this.witnessIn;
     newTx.witnessOut = this.witnessOut;
 

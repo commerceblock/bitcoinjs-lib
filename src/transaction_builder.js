@@ -29,6 +29,7 @@ class TransactionBuilder {
     this.__INPUTS = [];
     this.__TX = new transaction_1.Transaction();
     this.__TX.version = 2;
+    this.__TX.flag = 0;
     this.__USE_LOW_R = false;
   }
   static fromTransaction(transaction, network) {
@@ -36,6 +37,9 @@ class TransactionBuilder {
     // Copy transaction fields
     txb.setVersion(transaction.version);
     txb.setLockTime(transaction.locktime);
+    txb.setFlag(transaction.flag);
+    txb.setWitnessIn(transaction.witnessIn);
+    txb.setWitnessOut(transaction.witnessOut);
     // Copy outputs (done first to avoid signature invalidation)
     transaction.outs.forEach(txOut => {
       txb.addOutput(txOut.asset, txOut.nValue, txOut.nonce, txOut.script);
@@ -81,6 +85,18 @@ class TransactionBuilder {
     // XXX: this might eventually become more complex depending on what the versions represent
     this.__TX.version = version;
   }
+  setWitnessIn(witnessIn) {
+    typeforce(types.Array, witnessIn);
+    this.__TX.witnessIn = witnessIn;
+  }
+  setWitnessOut(witnessOut) {
+    typeforce(types.Array, witnessOut);
+    this.__TX.witnessOut = witnessOut;
+  }
+  setFlag(flag) {
+    typeforce(types.UInt8, flag);
+    this.__TX.flag = flag;
+  }
   addInput(txHash, vout, inSequence, inPrevOutScript, inIsPegin, inIssuance) {
     if (!this.__canModifyInputs()) {
       throw new Error('No, this would invalidate signatures');
@@ -98,19 +114,57 @@ class TransactionBuilder {
       if (amountNum) inAmount = amountNum;
       txHash = txHash.getHash();
     }
+    let passIssuance;
+    if (inIssuance) {
+      if (
+        inIssuance.assetBlindingNonce &&
+        inIssuance.assetEntropy &&
+        inIssuance.assetamount &&
+        inIssuance.tokenamount
+      ) {
+        if (
+          typeof inIssuance.assetBlindingNonce === 'string' &&
+          typeof inIssuance.assetEntropy === 'string' &&
+          typeof inIssuance.assetamount === 'string' &&
+          typeof inIssuance.tokenamount === 'string'
+        ) {
+          passIssuance = {
+            assetBlindingNonce: Buffer.from(
+              inIssuance.assetBlindingNonce,
+              'hex',
+            ),
+            assetEntropy: Buffer.from(inIssuance.assetEntropy, 'hex'),
+            assetamount: Buffer.from(inIssuance.assetamount, 'hex'),
+            tokenamount: Buffer.from(inIssuance.tokenamount, 'hex'),
+          };
+        } else if (
+          Buffer.isBuffer(inIssuance.assetBlindingNonce) &&
+          Buffer.isBuffer(inIssuance.assetEntropy) &&
+          Buffer.isBuffer(inIssuance.assetamount) &&
+          Buffer.isBuffer(inIssuance.tokenamount)
+        ) {
+          passIssuance = {
+            assetBlindingNonce: inIssuance.assetBlindingNonce,
+            assetEntropy: inIssuance.assetEntropy,
+            assetamount: inIssuance.assetamount,
+            tokenamount: inIssuance.tokenamount,
+          };
+        }
+      }
+    }
     return this.__addInputUnsafe(txHash, vout, {
       sequence: inSequence,
       prevOutScript: inPrevOutScript,
       amount: inAmount,
       isPegin: inIsPegin,
-      issuance: inIssuance,
+      issuance: passIssuance,
     });
   }
   addOutput(asset, nValue, nonce, scriptPubKey) {
     if (!this.__canModifyOutputs()) {
       throw new Error('No, this would invalidate signatures');
     }
-    // Attempt to get a script if it's a base58 or bech32 address string
+    // Attempt to get a script if it's a base58 address string
     if (typeof scriptPubKey === 'string') {
       scriptPubKey = baddress.toOutputScript(scriptPubKey, this.network);
     }
