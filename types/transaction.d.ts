@@ -61,7 +61,8 @@ export declare class Transaction {
     witnessIn: WitnessInput[];
     witnessOut: WitnessOutput[];
     isCoinbase(): boolean;
-    addInput(hash: Buffer, index: number, sequence?: number, scriptSig?: Buffer, inIsPegin?: boolean, inIssuance?: Issuance): number;
+    ValidateIssuance(assetBlindingNonce: Buffer, assetEntropy: Buffer, assetamount: Buffer, tokenamount: Buffer): boolean;
+    addInput(hash: Buffer, index: number, sequence?: number, scriptSig?: Buffer, inIssuance?: Issuance): number;
     addOutput(_asset: Buffer, _nValue: Buffer, _nonce: Buffer, scriptPubKey: Buffer): number;
     hasWitnesses(): boolean;
     weight(): number;

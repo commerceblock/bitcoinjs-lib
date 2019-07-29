@@ -27,12 +27,10 @@
       },
       {
         "description": "Transaction w/ P2PKH -> P2PKH (with Issuance information)",
-        "txHex": "01000000000178fdfddeafc3bac34abe63efee0d64f7d817cee508ded08746ba4ae6df5349cb0000008000ffffffff000000000000000000000000000000000000000000000000000000000000000006226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f01000775f05a0740000100000000000000000101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100001319718a500000015100000000",
+        "txHex": "010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000806a47304402207ca63d11a8d082d9270ebe28fa4a503b9abf5183f6bd69eb159c5e14dae0b59e02207b6a2dcaf6af539bd0ea23516ad14f2257d47bdbcb82fc7f253215bd1807d37f01210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff000000000000000000000000000000000000000000000000000000000000000006226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f01000775f05a0740000100000000000000000101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100001319718a500000015100000000",
         "version": 1,
-        "incomplete": true,
         "inputs": [
           {
-            "isPegin": false,
             "issuance": {
               "assetBlindingNonce": "0000000000000000000000000000000000000000000000000000000000000000",
               "assetEntropy": "06226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f",
@@ -52,7 +50,6 @@
           {
             "value": 21000000000000,
             "script": "OP_TRUE",
-            "scriptHex": "0151",
             "asset": "01230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2",
             "nonce": "00"
           }
@@ -1707,6 +1704,98 @@
         "description": "Complete transaction w/ non-standard inputs",
         "exception": "Unknown input type",
         "txHex": "01000000000100000000171a0000e028f2000000000050178500000000000d0000000e00000000000000201ff691b2263260e71f363d1db51ff3100d285956a40cc0e4f8c8c2c4a80559b1ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d010000000000002710001976a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac00000000"
+      },
+      {
+        "description": "Transaction with missing Issuance assetBlindingNonce",
+        "version": 1,
+        "incomplete": true,
+        "exception": "Issuance does not contain all four of the necessary fields",
+        "inputs": [
+          {
+            "issuance": {
+              "assetEntropy": "06226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f",
+              "assetamount": "01000775f05a074000",
+              "tokenamount": "010000000000000000"
+            },
+            "txId": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "vout": 2147483648,
+            "signs": [
+              {
+                "keyPair": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "value": 21000000000000,
+            "script": "OP_TRUE",
+            "asset": "01230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2",
+            "nonce": "00"
+          }
+        ]
+      },
+      {
+        "description": "Transaction with incorrect input index (no issuance flag)",
+        "version": 1,
+        "incomplete": true,
+        "exception": "Issuance flag has not been set or index is max yet addInput has received an issuance object",
+        "inputs": [
+          {
+            "issuance": {
+              "assetBlindingNonce": "0000000000000000000000000000000000000000000000000000000000000000",
+              "assetEntropy": "06226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f",
+              "assetamount": "01000775f05a074000",
+              "tokenamount": "010000000000000000"
+            },
+            "txId": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "vout": 0,
+            "signs": [
+              {
+                "keyPair": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "value": 21000000000000,
+            "script": "OP_TRUE",
+            "asset": "01230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2",
+            "nonce": "00"
+          }
+        ]
+      },
+      {
+        "description": "Transaction with issuance data of invalid length",
+        "version": 1,
+        "incomplete": true,
+        "exception": "Expected Buffer|Buffer|Buffer, got Buffer",
+        "inputs": [
+          {
+            "issuance": {
+              "assetBlindingNonce": "0000000000000000000000000000000000000000000000000000000000000000",
+              "assetEntropy": "06226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f",
+              "assetamount": "01000775f05a0740000000",
+              "tokenamount": "010000000000000000"
+            },
+            "txId": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "vout": 2147483648,
+            "signs": [
+              {
+                "keyPair": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "value": 21000000000000,
+            "script": "OP_TRUE",
+            "asset": "01230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2",
+            "nonce": "00"
+          }
+        ]
       }
     ],
     "sign": [

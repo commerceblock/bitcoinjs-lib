@@ -36,7 +36,7 @@ describe('Transaction', () => {
         }
       }
 
-      tx.addInput(txHash, txIn.index, txIn.sequence, scriptSig, txIn.isPegin, issuance)
+      tx.addInput(txHash, txIn.index, txIn.sequence, scriptSig, issuance)
     })
 
     raw.outs.forEach(txOut => {

@@ -81,7 +81,7 @@ function construct (f, dontSign) {
       prevTxScript = bscript.fromASM(input.prevTxScript)
     }
 
-    txb.addInput(prevTx, input.vout, input.sequence, prevTxScript, input.isPegin, input.issuance)
+    txb.addInput(prevTx, input.vout, input.sequence, prevTxScript, input.issuance)
   })
 
   f.outputs.forEach(output => {

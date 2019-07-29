@@ -13,6 +13,8 @@ const transaction_1 = require('./transaction');
 const types = require('./types');
 const typeforce = require('typeforce');
 const SCRIPT_TYPES = classify.types;
+const OUTPOINT_ISSUANCE_FLAG = (1 << 31) >>> 0;
+const MINUS_1 = 4294967295;
 function txIsString(tx) {
   return typeof tx === 'string' || tx instanceof String;
 }
@@ -38,8 +40,6 @@ class TransactionBuilder {
     txb.setVersion(transaction.version);
     txb.setLockTime(transaction.locktime);
     txb.setFlag(transaction.flag);
-    txb.setWitnessIn(transaction.witnessIn);
-    txb.setWitnessOut(transaction.witnessOut);
     // Copy outputs (done first to avoid signature invalidation)
     transaction.outs.forEach(txOut => {
       txb.addOutput(txOut.asset, txOut.nValue, txOut.nonce, txOut.script);
@@ -49,10 +49,11 @@ class TransactionBuilder {
       txb.__addInputUnsafe(txIn.hash, txIn.index, {
         sequence: txIn.sequence,
         script: txIn.script,
-        isPegin: txIn.isPegin,
         issuance: txIn.issuance,
       });
     });
+    txb.setWitnessIn(transaction.witnessIn);
+    txb.setWitnessOut(transaction.witnessOut);
     // fix some things not possible through the public API
     txb.__INPUTS.forEach((input, i) => {
       fixMultisigOrder(input, transaction, i);
@@ -85,19 +86,75 @@ class TransactionBuilder {
     // XXX: this might eventually become more complex depending on what the versions represent
     this.__TX.version = version;
   }
+  // Simple validation method for witness input being not undefined and of the correct type
+  validateWitnessIn(
+    issuanceRangeProof,
+    inflationRangeProof,
+    scriptWitness,
+    peginWitness,
+  ) {
+    typeforce(types.Buffer, issuanceRangeProof);
+    typeforce(types.Buffer, inflationRangeProof);
+    typeforce(typeforce.arrayOf('Buffer'), scriptWitness);
+    typeforce(typeforce.arrayOf('Buffer'), peginWitness);
+    return true;
+  }
+  // Simple validation method for witness output being not undefined and of the correct type
+  validateWitnessOut(surjectionProof, rangeProof) {
+    typeforce(types.Buffer, surjectionProof);
+    typeforce(types.Buffer, rangeProof);
+    return true;
+  }
   setWitnessIn(witnessIn) {
     typeforce(types.Array, witnessIn);
+    if (witnessIn.length > 0) {
+      if (this.__TX.ins.length !== witnessIn.length)
+        throw new Error(
+          'Witness Input length does not match TX input length in TransactionBuilder',
+        );
+      try {
+        for (const obj of witnessIn) {
+          this.validateWitnessIn(
+            obj.issuanceRangeProof,
+            obj.inflationRangeProof,
+            obj.scriptWitness,
+            obj.peginWitness,
+          );
+        }
+      } catch (err) {
+        throw new Error(
+          'One of the Witness inputs has a field that is undefined or of wrong type',
+        );
+      }
+      this.setFlag(1);
+    }
     this.__TX.witnessIn = witnessIn;
   }
   setWitnessOut(witnessOut) {
     typeforce(types.Array, witnessOut);
+    if (witnessOut.length > 0) {
+      if (this.__TX.outs.length !== witnessOut.length)
+        throw new Error(
+          'Witness Output length does not match TX output length in TransactionBuilder',
+        );
+      try {
+        for (const obj of witnessOut) {
+          this.validateWitnessOut(obj.surjectionProof, obj.rangeProof);
+        }
+      } catch (err) {
+        throw new Error(
+          'One of the Witness outputs has a field that is undefined or of wrong type',
+        );
+      }
+      this.setFlag(1);
+    }
     this.__TX.witnessOut = witnessOut;
   }
   setFlag(flag) {
     typeforce(types.UInt8, flag);
     this.__TX.flag = flag;
   }
-  addInput(txHash, vout, inSequence, inPrevOutScript, inIsPegin, inIssuance) {
+  addInput(txHash, vout, inSequence, inPrevOutScript, inIssuance) {
     if (!this.__canModifyInputs()) {
       throw new Error('No, this would invalidate signatures');
     }
@@ -116,6 +173,10 @@ class TransactionBuilder {
     }
     let passIssuance;
     if (inIssuance) {
+      if (!(vout & OUTPOINT_ISSUANCE_FLAG) || vout === MINUS_1)
+        throw new Error(
+          'Issuance flag has not been set or index is max yet addInput has received an issuance object',
+        );
       if (
         inIssuance.assetBlindingNonce &&
         inIssuance.assetEntropy &&
@@ -149,14 +210,17 @@ class TransactionBuilder {
             assetamount: inIssuance.assetamount,
             tokenamount: inIssuance.tokenamount,
           };
-        }
-      }
+        } else
+          throw new Error('Issuance has mixed or invalid object parameters');
+      } else
+        throw new Error(
+          'Issuance does not contain all four of the necessary fields',
+        );
     }
     return this.__addInputUnsafe(txHash, vout, {
       sequence: inSequence,
       prevOutScript: inPrevOutScript,
       amount: inAmount,
-      isPegin: inIsPegin,
       issuance: passIssuance,
     });
   }
@@ -264,7 +328,6 @@ class TransactionBuilder {
       vout,
       options.sequence,
       options.scriptSig,
-      options.isPegin,
       options.issuance,
     );
     this.__INPUTS[vin] = input;

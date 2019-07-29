@@ -20,10 +20,12 @@ export declare class TransactionBuilder {
     setLowR(setting?: boolean): boolean;
     setLockTime(locktime: number): void;
     setVersion(version: number): void;
+    validateWitnessIn(issuanceRangeProof: Buffer, inflationRangeProof: Buffer, scriptWitness: Buffer[], peginWitness: Buffer[]): boolean;
+    validateWitnessOut(surjectionProof: Buffer, rangeProof: Buffer): boolean;
     setWitnessIn(witnessIn: WitnessInput[]): void;
     setWitnessOut(witnessOut: WitnessOutput[]): void;
     setFlag(flag: number): void;
-    addInput(txHash: Buffer | string | Transaction, vout: number, inSequence?: number, inPrevOutScript?: Buffer, inIsPegin?: boolean, inIssuance?: TxbIssuance): number;
+    addInput(txHash: Buffer | string | Transaction, vout: number, inSequence?: number, inPrevOutScript?: Buffer, inIssuance?: TxbIssuance): number;
     addOutput(asset: string | Buffer, nValue: number | Buffer, nonce: string | Buffer, scriptPubKey: string | Buffer): number;
     build(): Transaction;
     buildIncomplete(): Transaction;

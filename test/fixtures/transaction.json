@@ -457,7 +457,6 @@
             "hash": "78fdfddeafc3bac34abe63efee0d64f7d817cee508ded08746ba4ae6df5349cb",
             "index": 2147483648,
             "script": "",
-            "isPegin": false,
             "issuance": {
               "assetBlindingNonce": "0000000000000000000000000000000000000000000000000000000000000000",
               "assetEntropy": "06226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f",

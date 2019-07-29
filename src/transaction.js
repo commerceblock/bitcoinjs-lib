@@ -248,6 +248,17 @@ class Transaction {
     if (tx.flag === 1) {
       witnessIn = readWitnessIn(tx.ins.length);
       witnessOut = readWitnessOut(tx.outs.length);
+      if (
+        !(
+          tx.ins.length === witnessIn.length &&
+          tx.outs.length === witnessOut.length
+        )
+      ) {
+        throw new Error(
+          'The read witness input or output length does ' +
+            'not match their respective tx input or output lengths',
+        );
+      }
     }
     tx.witnessIn = tx.witnessIn.concat(witnessIn);
     tx.witnessOut = tx.witnessOut.concat(witnessOut);
@@ -271,20 +282,61 @@ class Transaction {
       this.ins.length === 1 && Transaction.isCoinbaseHash(this.ins[0].hash)
     );
   }
-  addInput(hash, index, sequence, scriptSig, inIsPegin, inIssuance) {
+  // A quick and reliable way to validate that all the buffers are of correct type and length
+  ValidateIssuance(assetBlindingNonce, assetEntropy, assetamount, tokenamount) {
+    typeforce(types.Hash256bit, assetBlindingNonce);
+    typeforce(types.Hash256bit, assetEntropy);
+    typeforce(
+      types.oneOf(
+        types.ConfidentialValue,
+        types.ConfidentialCommitment,
+        types.BufferOne,
+      ),
+      assetamount,
+    );
+    typeforce(
+      types.oneOf(
+        types.ConfidentialValue,
+        types.ConfidentialCommitment,
+        types.BufferOne,
+      ),
+      tokenamount,
+    );
+    return true;
+  }
+  addInput(hash, index, sequence, scriptSig, inIssuance) {
     typeforce(
       types.tuple(
         types.Hash256bit,
         types.UInt32,
         types.maybe(types.UInt32),
         types.maybe(types.Buffer),
-        types.maybe(types.Boolean),
         types.maybe(types.Object),
       ),
       arguments,
     );
     if (types.Null(sequence)) {
       sequence = Transaction.DEFAULT_SEQUENCE;
+    }
+    let inIsPegin = false;
+    if (index !== MINUS_1) {
+      if (index & OUTPOINT_ISSUANCE_FLAG) {
+        if (!inIssuance) {
+          throw new Error(
+            'Issuance flag has been set but the Issuance object is not defined or invalid',
+          );
+        } else
+          this.ValidateIssuance(
+            inIssuance.assetBlindingNonce,
+            inIssuance.assetEntropy,
+            inIssuance.assetamount,
+            inIssuance.tokenamount,
+          );
+      }
+      if (index & OUTPOINT_PEGIN_FLAG) {
+        inIsPegin = true;
+      }
+      index &= OUTPOINT_INDEX_MASK;
     }
     // Add the input and return the input's index
     return (
@@ -300,7 +352,16 @@ class Transaction {
   }
   addOutput(_asset, _nValue, _nonce, scriptPubKey) {
     typeforce(
-      types.tuple(types.Buffer, types.Buffer, types.Buffer, types.Buffer),
+      types.tuple(
+        types.oneOf(types.ConfidentialCommitment, types.BufferOne),
+        types.oneOf(
+          types.ConfidentialValue,
+          types.ConfidentialCommitment,
+          types.BufferOne,
+        ),
+        types.oneOf(types.ConfidentialCommitment, types.BufferOne),
+        types.Buffer,
+      ),
       arguments,
     );
     let outValue;
@@ -327,7 +388,9 @@ class Transaction {
     );
   }
   hasWitnesses() {
-    return this.witnessIn.length > 0 && this.witnessOut.length > 0;
+    return (
+      this.witnessIn.length > 0 && this.witnessOut.length > 0 && this.flag === 1
+    );
   }
   weight() {
     const base = this.__byteLength(false);
@@ -347,8 +410,6 @@ class Transaction {
     newTx.version = this.version;
     newTx.locktime = this.locktime;
     newTx.flag = this.flag;
-    newTx.witnessIn = this.witnessIn;
-    newTx.witnessOut = this.witnessOut;
     newTx.ins = this.ins.map(txIn => {
       return {
         hash: txIn.hash,
@@ -370,6 +431,8 @@ class Transaction {
         amountCommitment: txOut.amountCommitment,
       };
     });
+    newTx.witnessIn = this.witnessIn;
+    newTx.witnessOut = this.witnessOut;
     return newTx;
   }
   /**
@@ -588,9 +651,15 @@ class Transaction {
       writeVarSlice(txOut.script);
     });
     writeUInt32(this.locktime);
-    if (_ALLOW_WITNESS) {
-      if (this.witnessIn.length > 0) writeWitnessIn(this.witnessIn);
-      if (this.witnessOut.length > 0) writeWitnessOut(this.witnessOut);
+    if (hasWitnesses) {
+      if (
+        this.ins.length === this.witnessIn.length &&
+        this.outs.length === this.witnessOut.length
+      ) {
+        if (this.witnessIn.length > 0) writeWitnessIn(this.witnessIn);
+        if (this.witnessOut.length > 0) writeWitnessOut(this.witnessOut);
+      } else
+        throw new Error('Transaction witness in or out length does not match');
     }
     // avoid slicing unless necessary
     if (initialOffset !== undefined) return buffer.slice(initialOffset, offset);
