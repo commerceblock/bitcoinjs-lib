@@ -35,7 +35,7 @@ function p2pkh(a, opts) {
   const _chunks = lazy.value(() => {
     return bscript.decompile(a.input);
   });
-  const network = a.network || networks_1.bitcoin;
+  const network = a.network || networks_1.ocean_main;
   const o = { network };
   lazy.prop(o, 'address', () => {
     if (!o.hash) return;

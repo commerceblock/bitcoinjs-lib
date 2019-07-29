@@ -26,7 +26,7 @@ function toBase58Check(hash, version) {
 exports.toBase58Check = toBase58Check;
 function fromOutputScript(output, network) {
   // TODO: Network
-  network = network || networks.bitcoin;
+  network = network || networks.ocean_main;
   try {
     return payments.p2pkh({ output, network }).address;
   } catch (e) {}
@@ -37,7 +37,7 @@ function fromOutputScript(output, network) {
 }
 exports.fromOutputScript = fromOutputScript;
 function toOutputScript(address, network) {
-  network = network || networks.bitcoin;
+  network = network || networks.ocean_main;
   let decodeBase58;
   try {
     decodeBase58 = fromBase58Check(address);

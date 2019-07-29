@@ -42,7 +42,7 @@ class ECPair implements ECPairInterface {
     if (options === undefined) options = {};
     this.compressed =
       options.compressed === undefined ? true : options.compressed;
-    this.network = options.network || NETWORKS.bitcoin;
+    this.network = options.network || NETWORKS.ocean_main;
 
     if (__Q !== undefined) this.__Q = ecc.pointCompress(__Q, this.compressed);
   }
@@ -115,9 +115,9 @@ function fromWIF(wifString: string, network?: Network | Network[]): ECPair {
 
     if (!network) throw new Error('Unknown network version');
 
-    // otherwise, assume a network object (or default to bitcoin)
+    // otherwise, assume a network object (or default to ocean_main)
   } else {
-    network = network || NETWORKS.bitcoin;
+    network = network || NETWORKS.ocean_main;
 
     if (version !== (network as Network).wif)
       throw new Error('Invalid network version');

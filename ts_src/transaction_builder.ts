@@ -119,7 +119,7 @@ export class TransactionBuilder {
   // WARNING: maximumFeeRate is __NOT__ to be relied on,
   //          it's just another potential safety mechanism (safety in-depth)
   constructor(
-    public network: Network = networks.bitcoin,
+    public network: Network = networks.ocean_main,
     public maximumFeeRate: number = 2500,
   ) {
     this.__PREV_TX_SET = {};

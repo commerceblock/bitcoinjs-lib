@@ -119,7 +119,7 @@ describe('TransactionBuilder', () => {
   describe('fromTransaction', () => {
     fixtures.valid.build.forEach(f => {
       it('returns TransactionBuilder, with ' + f.description, () => {
-        const network = NETWORKS[f.network || 'bitcoin']
+        const network = NETWORKS[f.network || 'ocean_main']
 
         const tx = Transaction.fromHex(f.txHex)
         const txb = TransactionBuilder.fromTransaction(tx, network)
@@ -487,9 +487,9 @@ describe('TransactionBuilder', () => {
       const inp = Buffer.from('01000000000173120703f67318aef51f7251272a6816d3f7523bb25e34b136d80be959391c100000000000ffffffff0101e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d0100000004a817c8000017a91471a8ec07ff69c6c4fee489184c462a9b1b9237488700000000', 'hex') // arbitrary P2SH input
       const inpTx = Transaction.fromBuffer(inp)
 
-      const txb = new TransactionBuilder(NETWORKS.testnet)
+      const txb = new TransactionBuilder(NETWORKS.ocean_test)
       txb.addInput(inpTx, 0)
-      txb.addOutput(assethex, 1e8, emptyNonce, '2NAkqp5xffoomp5RLBcakuGpZ12GU4twdz4') // arbitrary output
+      txb.addOutput(assethex, 1e8, emptyNonce, 'XRtgTyvnc56CwNkw6bYrSLtrUxfyQrazZE') // arbitrary output
 
       txb.buildIncomplete()
     })
@@ -534,7 +534,7 @@ describe('TransactionBuilder', () => {
   })
 
   describe('various edge case', () => {
-    const network = NETWORKS.testnet
+    const network = NETWORKS.ocean_test
 
     it('should handle badly pre-filled OP_0s', () => {
       // OP_0 is used where a signature is missing
@@ -546,7 +546,7 @@ describe('TransactionBuilder', () => {
       tx.addOutput(Buffer.from(assethex, 'hex'), constructValueBuffer(1000), emptyNonce, Buffer.from('76a914aa4d7985c57e011a8b3dd8e0e5a73aaef41629c588ac', 'hex'))
 
       // now import the Transaction
-      const txb = TransactionBuilder.fromTransaction(tx, NETWORKS.testnet)
+      const txb = TransactionBuilder.fromTransaction(tx, NETWORKS.ocean_test)
 
       const keyPair2 = ECPair.fromWIF('91avARGdfge8E4tZfYLoxeJ5sGBdNJQH4kvjJoQFacbgx3cTMqe', network)
       txb.sign(0, keyPair2, redeemScript)

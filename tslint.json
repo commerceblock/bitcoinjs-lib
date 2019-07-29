@@ -1,6 +1,11 @@
 {
   "defaultSeverity": "error",
   "extends": ["tslint:recommended"],
+  "linterOptions": {
+      "exclude": [
+          "ts_src/networks.ts"
+      ]
+  },
   "rules": {
     "arrow-parens": [true, "ban-single-arg-parens"],
     "curly": false,

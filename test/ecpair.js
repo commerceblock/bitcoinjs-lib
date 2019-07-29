@@ -54,10 +54,10 @@ describe('ECPair', () => {
     it('supports the network option', () => {
       const keyPair = ECPair.fromPrivateKey(ONE, {
         compressed: false,
-        network: NETWORKS.testnet
+        network: NETWORKS.ocean_test
       })
 
-      assert.strictEqual(keyPair.network, NETWORKS.testnet)
+      assert.strictEqual(keyPair.network, NETWORKS.ocean_test)
     })
 
     fixtures.valid.forEach(f => {
@@ -161,17 +161,17 @@ describe('ECPair', () => {
       const keyPair = ECPair.makeRandom()
 
       assert.strictEqual(keyPair.compressed, true)
-      assert.strictEqual(keyPair.network, NETWORKS.bitcoin)
+      assert.strictEqual(keyPair.network, NETWORKS.ocean_main)
     })
 
     it('supports the options parameter', () => {
       const keyPair = ECPair.makeRandom({
         compressed: false,
-        network: NETWORKS.testnet
+        network: NETWORKS.ocean_test
       })
 
       assert.strictEqual(keyPair.compressed, false)
-      assert.strictEqual(keyPair.network, NETWORKS.testnet)
+      assert.strictEqual(keyPair.network, NETWORKS.ocean_test)
     })
 
     it('throws if d is bad length', () => {

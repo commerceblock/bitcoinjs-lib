@@ -9,7 +9,8 @@ interface Bip32 {
     public: number;
     private: number;
 }
-export declare const bitcoin: Network;
-export declare const regtest: Network;
-export declare const testnet: Network;
+export declare const gold_main: Network;
+export declare const ocean_main: Network;
+export declare const gold_test: Network;
+export declare const ocean_test: Network;
 export {};

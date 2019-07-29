@@ -23,7 +23,7 @@ function p2data(a, opts) {
     },
     a,
   );
-  const network = a.network || networks_1.bitcoin;
+  const network = a.network || networks_1.ocean_main;
   const o = { network };
   lazy.prop(o, 'output', () => {
     if (!a.data) return;
