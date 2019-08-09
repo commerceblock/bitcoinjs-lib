@@ -494,9 +494,9 @@ class Transaction {
       txTmp.ins[inIndex].script = ourScript;
     }
     // serialize and hash
-    const buffer = Buffer.allocUnsafe(txTmp.__byteLength(false) + 4);
+    const buffer = Buffer.allocUnsafe(txTmp.__byteLength(false, true) + 4);
     buffer.writeInt32LE(hashType, buffer.length - 4);
-    txTmp.__toBuffer(buffer, 0, false, true);
+    txTmp.__toBuffer(buffer, 0, false, true, true);
     return bcrypto.hash256(buffer);
   }
   getHash() {
@@ -516,10 +516,11 @@ class Transaction {
     typeforce(types.tuple(types.Number, types.Buffer), arguments);
     this.ins[index].script = scriptSig;
   }
-  __byteLength(_ALLOW_WITNESS) {
+  __byteLength(_ALLOW_WITNESS, forSignature) {
     const hasWitnesses = _ALLOW_WITNESS && this.hasWitnesses();
     return (
-      9 +
+      8 +
+      (forSignature ? 0 : 1) +
       varuint.encodingLength(this.ins.length) +
       varuint.encodingLength(this.outs.length) +
       this.ins.reduce((sum, input) => {
@@ -571,8 +572,17 @@ class Transaction {
         : 0)
     );
   }
-  __toBuffer(buffer, initialOffset, _ALLOW_WITNESS, forceZeroFlag) {
-    if (!buffer) buffer = Buffer.allocUnsafe(this.__byteLength(_ALLOW_WITNESS));
+  __toBuffer(
+    buffer,
+    initialOffset,
+    _ALLOW_WITNESS,
+    forceZeroFlag,
+    forSignature,
+  ) {
+    if (!buffer)
+      buffer = Buffer.allocUnsafe(
+        this.__byteLength(_ALLOW_WITNESS, forSignature),
+      );
     let offset = initialOffset || 0;
     function writeSlice(slice) {
       offset += slice.copy(buffer, offset);
@@ -615,12 +625,14 @@ class Transaction {
     }
     writeInt32(this.version);
     const hasWitnesses = _ALLOW_WITNESS && this.hasWitnesses();
-    if (
-      hasWitnesses &&
-      (forceZeroFlag === false || forceZeroFlag === undefined)
-    )
-      writeUInt8(Transaction.ADVANCED_TRANSACTION_FLAG);
-    else writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
+    if (forSignature !== true) {
+      if (
+        hasWitnesses &&
+        (forceZeroFlag === false || forceZeroFlag === undefined)
+      )
+        writeUInt8(Transaction.ADVANCED_TRANSACTION_FLAG);
+      else writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
+    }
     writeVarInt(this.ins.length);
     this.ins.forEach(txIn => {
       writeSlice(txIn.hash);

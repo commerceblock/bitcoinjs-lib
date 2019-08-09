@@ -650,9 +650,11 @@ export class Transaction {
     }
 
     // serialize and hash
-    const buffer: Buffer = Buffer.allocUnsafe(txTmp.__byteLength(false) + 4);
+    const buffer: Buffer = Buffer.allocUnsafe(
+      txTmp.__byteLength(false, true) + 4,
+    );
     buffer.writeInt32LE(hashType, buffer.length - 4);
-    txTmp.__toBuffer(buffer, 0, false, true);
+    txTmp.__toBuffer(buffer, 0, false, true, true);
 
     return bcrypto.hash256(buffer);
   }
@@ -680,10 +682,14 @@ export class Transaction {
     this.ins[index].script = scriptSig;
   }
 
-  private __byteLength(_ALLOW_WITNESS: boolean): number {
+  private __byteLength(
+    _ALLOW_WITNESS: boolean,
+    forSignature?: boolean,
+  ): number {
     const hasWitnesses = _ALLOW_WITNESS && this.hasWitnesses();
     return (
-      9 +
+      8 +
+      (forSignature ? 0 : 1) +
       varuint.encodingLength(this.ins.length) +
       varuint.encodingLength(this.outs.length) +
       this.ins.reduce((sum, input) => {
@@ -741,9 +747,12 @@ export class Transaction {
     initialOffset?: number,
     _ALLOW_WITNESS?: boolean,
     forceZeroFlag?: boolean,
+    forSignature?: boolean,
   ): Buffer {
     if (!buffer)
-      buffer = Buffer.allocUnsafe(this.__byteLength(_ALLOW_WITNESS!)) as Buffer;
+      buffer = Buffer.allocUnsafe(
+        this.__byteLength(_ALLOW_WITNESS!, forSignature),
+      ) as Buffer;
 
     let offset = initialOffset || 0;
 
@@ -801,13 +810,14 @@ export class Transaction {
     writeInt32(this.version);
 
     const hasWitnesses = _ALLOW_WITNESS && this.hasWitnesses();
-
-    if (
-      hasWitnesses &&
-      (forceZeroFlag === false || forceZeroFlag === undefined)
-    )
-      writeUInt8(Transaction.ADVANCED_TRANSACTION_FLAG);
-    else writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
+    if (forSignature !== true) {
+      if (
+        hasWitnesses &&
+        (forceZeroFlag === false || forceZeroFlag === undefined)
+      )
+        writeUInt8(Transaction.ADVANCED_TRANSACTION_FLAG);
+      else writeUInt8(Transaction.ADVANCED_TRANSACTION_MARKER);
+    }
 
     writeVarInt(this.ins.length);
 
