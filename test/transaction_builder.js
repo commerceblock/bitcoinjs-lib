@@ -533,6 +533,30 @@ describe('TransactionBuilder', () => {
     })
   })
 
+  describe('contract', () => {
+    it('supports addition of a contract hash string to a transaction', () => {
+      let txb = new TransactionBuilder()
+      txb.setVersion(1)
+      txb.addInput('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 1)
+      txb.addOutput(assethex, 100000, emptyNonce, '1111111111111111111114oLvT2')
+      txb.addContract('e6e3e96c0a928d8d1fa0003b0079f6cddd18330fb42deb014465e7cefbb08a85')
+      txb.sign(0, keyPair)
+      // high R
+      assert.strictEqual(txb.build().toHex(), '010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff010000006a4730440220560ab7f8ca79912d4636a1092eda47231bf673ab7c161ac4b7fc2a16ca45c96f0220017696a8eddcc1346cacac0d27c27adacdb3817f76d8d47c4f3dd9d8c5d839a601210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff0201e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d0100000000000186a0001976a914000000000000000000000000000000000000000088ac0001000000000000000000226a20e6e3e96c0a928d8d1fa0003b0079f6cddd18330fb42deb014465e7cefbb08a8500000000')    
+    })
+
+    it('supports addition of a contract hash buffer to a transaction', () => {
+      let txb = new TransactionBuilder()
+      txb.setVersion(1)
+      txb.addInput('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 1)
+      txb.addOutput(assethex, 100000, emptyNonce, '1111111111111111111114oLvT2')
+      txb.addContract(Buffer.from('e6e3e96c0a928d8d1fa0003b0079f6cddd18330fb42deb014465e7cefbb08a85', 'hex'))
+      txb.sign(0, keyPair)
+      // high R
+      assert.strictEqual(txb.build().toHex(), '010000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff010000006a4730440220560ab7f8ca79912d4636a1092eda47231bf673ab7c161ac4b7fc2a16ca45c96f0220017696a8eddcc1346cacac0d27c27adacdb3817f76d8d47c4f3dd9d8c5d839a601210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ffffffff0201e44bd3955e62587468668f367b4702cdcc480454aeedc65c6a3d018e4e61ae3d0100000000000186a0001976a914000000000000000000000000000000000000000088ac0001000000000000000000226a20e6e3e96c0a928d8d1fa0003b0079f6cddd18330fb42deb014465e7cefbb08a8500000000')    
+    })
+  })
+
   describe('various edge case', () => {
     const network = NETWORKS.ocean_test
 

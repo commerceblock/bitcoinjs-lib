@@ -321,6 +321,27 @@ export class TransactionBuilder {
     });
   }
 
+  addContract(contract: Buffer | string): number {
+    typeforce(types.oneOf(types.Buffer256bit, types.String), contract);
+
+    if (!this.__canModifyOutputs()) {
+      throw new Error('No, this would invalidate signatures');
+    }
+
+    if (typeof contract === 'string') {
+      contract = Buffer.from(contract, 'hex');
+    }
+
+    // 6a is OP_RETURN and 20 is the contract hash size in hex - 32
+
+    return this.__TX.addOutput(
+      Buffer.from('00', 'hex'),
+      Buffer.from('010000000000000000', 'hex'),
+      Buffer.from('00', 'hex'),
+      Buffer.concat([Buffer.from('6a20', 'hex'), contract]),
+    );
+  }
+
   addOutput(
     asset: string | Buffer,
     nValue: number | Buffer,
